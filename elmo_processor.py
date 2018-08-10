@@ -3,15 +3,6 @@ import os
 from bilm import dump_bilm_embeddings_inner
 
 
-def vec2string(input_vec, divident):
-    ret = ""
-    for elem in input_vec:
-        elem /= divident
-        ret += str(elem) + ","
-    ret = ret[:-1]
-    return ret
-
-
 def generate_embedding(sentence):
     FREQ_MAP = {}
 
@@ -33,8 +24,4 @@ def generate_embedding(sentence):
         vocab_file, sentence, options_file, weight_file
     )
     return embedding
-
-
-sentence = "I like partying."
-print(generate_embedding(sentence))
 

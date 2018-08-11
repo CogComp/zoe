@@ -640,13 +640,12 @@ def dump_token_embeddings(vocab_file, options_file, weight_file, outfile):
             'embedding', embeddings.shape, dtype='float32', data=embeddings
         )
 
-def dump_bilm_embeddings(vocab_file, dataset_file, options_file,
-                         weight_file, outfile):
+def dump_bilm_embeddings(vocab_file, sentences, options_file,
+                         weight_file):
     with open(options_file, 'r') as fin:
         options = json.load(fin)
     max_word_length = options['char_cnn']['max_characters_per_token']
 
-    vocab = UnicodeCharsVocabulary(vocab_file, max_word_length)
     batcher = Batcher(vocab_file, max_word_length)
 
     ids_placeholder = tf.placeholder('int32',
@@ -654,25 +653,20 @@ def dump_bilm_embeddings(vocab_file, dataset_file, options_file,
     )
     model = BidirectionalLanguageModel(options_file, weight_file)
     ops = model(ids_placeholder)
-
     config = tf.ConfigProto(allow_soft_placement=True)
+    ret_map = {}
     with tf.Session(config=config) as sess:
         sess.run(tf.global_variables_initializer())
         sentence_id = 0
-        with open(dataset_file, 'r') as fin, h5py.File(outfile, 'w') as fout:
-            for line in fin:
-                sentence = line.strip().split()
-                char_ids = batcher.batch_sentences([sentence])
-                embeddings = sess.run(
-                    ops['lm_embeddings'], feed_dict={ids_placeholder: char_ids}
-                )
-                ds = fout.create_dataset(
-                    '{}'.format(sentence_id),
-                    embeddings.shape[1:], dtype='float32',
-                    data=embeddings[0, :, :, :]
-                )
-
-                sentence_id += 1
+        for sentence in sentences:
+            tokens = sentence.strip().split()
+            char_ids = batcher.batch_sentences([tokens])
+            embeddings = sess.run(
+                ops['lm_embeddings'], feed_dict={ids_placeholder: char_ids}
+            )
+            ret_map[sentence_id] = embeddings[0]
+            sentence_id += 1
+    return ret_map
 
 
 def dump_bilm_embeddings_inner(vocab_file, line, options_file,
@@ -688,7 +682,6 @@ def dump_bilm_embeddings_inner(vocab_file, line, options_file,
     )
     model = BidirectionalLanguageModel(options_file, weight_file)
     ops = model(ids_placeholder)
-
     config = tf.ConfigProto(allow_soft_placement=True)
     with tf.Session(config=config) as sess:
         sess.run(tf.global_variables_initializer())
@@ -697,5 +690,5 @@ def dump_bilm_embeddings_inner(vocab_file, line, options_file,
         embeddings = sess.run(
             ops['lm_embeddings'], feed_dict={ids_placeholder: char_ids}
         )
-        return embeddings
+        return embeddings[0]
 

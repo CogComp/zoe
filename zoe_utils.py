@@ -159,6 +159,9 @@ class EsaProcessor:
 
 class InferenceProcessor:
 
+    PROB_TRUST_THRESHOLD = 0.5
+    ELMO_TO_ESA_MULTIPLIER = 15.0
+
     def __init__(self, mode):
         self.mode = mode
         self.mapping = {}
@@ -167,6 +170,10 @@ class InferenceProcessor:
             for line in f:
                 line = line.strip()
                 self.mapping[line.split("\t")[0]] = line.split("\t")[1]
+        with open("data/prior_prob.pickle", "rb") as handle:
+            self.prior_prob_map = pickle.load(handle)
+        with open("data/title2freebase.pickle", "rb") as handle:
+            self.freebase_map = pickle.load(handle)
 
     #
     # process logic mappings from *.logic.mapping
@@ -186,8 +193,78 @@ class InferenceProcessor:
                         current_set.remove(line_group[2])
         return current_set
 
-    def inference(self, selected_title, candidates):
+    def get_prob_title(self, surface):
+        if surface in self.prior_prob_map:
+            prior_prob = self.prior_prob_map[surface]
+            if prior_prob[1] > self.PROB_TRUST_THRESHOLD:
+                return prior_prob[0]
+        return ""
+
+    #
+    # Note: slightly different than Java version
+    def get_coarse_types_of_title(self, title):
+        fine_types = self.get_types_of_title(title)
+        ret = set()
+        for t in fine_types:
+            ret.add("/" + t.split("/")[1])
+        return ret
+
+    def get_types_of_title(self, title):
+        if title not in self.freebase_map:
+            return []
+        freebase_types = self.freebase_map[title]
+        mapped_set = set()
+        for t in freebase_types:
+            if t in self.mapping:
+                mapped_set.add(self.mapping[t])
+        for t in mapped_set:
+            if len(t.split("/")) >= 2:
+                mapped_set.add("/" + t.split("/")[1])
+        return self.get_final_types(mapped_set)
+
+    def compute_set_freq(self, titles):
+        freq_map = {}
+        for title in titles:
+            title_types = self.get_types_of_title(title)
+            for t in title_types:
+                if t in freq_map:
+                    freq_map[t] = freq_map[t] + 1
+                else:
+                    freq_map[t] = 1
+        return freq_map
+
+    def select_in_order(self, candidates, type_scores):
+        for candidate in candidates:
+            coarse_types = self.get_coarse_types_of_title(candidate)
+            for ct in coarse_types:
+                if ct in type_scores and type_scores[ct] > 1.0:
+                    return candidate
+        return candidates[0]
+
+    def vote_for_types(self, selected_title, type_scores):
         pass
+
+    def inference(self, sentence, elmo_candidates, esa_candidates):
+        elmo_freq = self.compute_set_freq(elmo_candidates)
+        esa_freq = self.compute_set_freq(esa_candidates)
+        type_promotion_score_map = {}
+        for t in elmo_freq:
+            esa_freq_t = 0.0
+            if t in esa_freq:
+                esa_freq_t = float(esa_freq.get(t))
+            type_promotion_score_map[t] = float(elmo_freq.get(t)) * self.ELMO_TO_ESA_MULTIPLIER / esa_freq_t
+
+        selected_title = self.select_in_order(elmo_candidates, type_promotion_score_map)
+
+        prob_title = self.get_prob_title(sentence.get_mention_surface_raw())
+        if prob_title != "":
+            prob_title_coarse_types = self.get_coarse_types_of_title(prob_title)
+            for t in prob_title_coarse_types:
+                if t in type_promotion_score_map and type_promotion_score_map[t] > 1.0:
+                    selected_title = prob_title
+
+        # Now we have the most trust-worthy title
+
 
 
 class Sentence:

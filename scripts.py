@@ -100,13 +100,12 @@ def convert_prob(prob_file_name, n2c_fil2_name):
                     prob_map[surface] = (title, val)
             else:
                 prob_map[surface] = (title, val)
-    ret_map = {}
-    for key in prob_map:
-        ret_map[key] = prob_map[key][0]
     with open('data/prior_prob.pickle', 'wb') as handle:
-        pickle.dump(ret_map, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        pickle.dump(prob_map, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 
-convert_freebase('/Volumes/Research/Process/title2freebase.txt', '/Volumes/Research/Process/title2freebase_sup.txt')
-
+#
+# TODO: Check if all required files are here
+def check_data_file_integrity():
+    pass
 

@@ -640,6 +640,7 @@ def dump_token_embeddings(vocab_file, options_file, weight_file, outfile):
             'embedding', embeddings.shape, dtype='float32', data=embeddings
         )
 
+
 def dump_bilm_embeddings(vocab_file, sentences, options_file,
                          weight_file):
     with open(options_file, 'r') as fin:

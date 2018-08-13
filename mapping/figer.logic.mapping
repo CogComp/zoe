@@ -1,0 +1,9 @@
++	/building	/location
++	/news_agency	/organization
++	/news_agency	/organization/company
+-	/news_agency	/written_work
++	/written_work	/art
+-	/organization/educational_institution	/organization/company
+-	/organization/sports_league	/organization/company
++	/transportation/road	/location
++	/livingthing	/living_thing

@@ -157,12 +157,46 @@ class EsaProcessor:
         return [x[0] for x in sorted_overall_map][:self.RETURN_NUM]
 
 
+class InferenceProcessor:
+
+    def __init__(self, mode):
+        self.mode = mode
+        self.mapping = {}
+        mapping_file_name = "mapping/" + self.mode + ".mapping"
+        with open(mapping_file_name) as f:
+            for line in f:
+                line = line.strip()
+                self.mapping[line.split("\t")[0]] = line.split("\t")[1]
+
+    #
+    # process logic mappings from *.logic.mapping
+    def get_final_types(self, current_set):
+        logic_mapping_file_name = "mapping/" + self.mode + ".logic.mapping"
+        if not os.path.isfile(logic_mapping_file_name):
+            return current_set
+        with open(logic_mapping_file_name) as f:
+            for line in f:
+                line = line.strip()
+                line_group = line.split("\t")
+                if line_group[0] == "+":
+                    if line_group[1] in current_set:
+                        current_set.add(line_group[2])
+                else:
+                    if line_group[1] in current_set and line_group[2] in current_set:
+                        current_set.remove(line_group[2])
+        return current_set
+
+    def inference(self, selected_title, candidates):
+        pass
+
+
 class Sentence:
 
-    def __init__(self, tokens, mention_start, mention_end):
+    def __init__(self, tokens, mention_start, mention_end, gold_types):
         self.tokens = tokens
         self.mention_start = mention_start
         self.mention_end = mention_end
+        self.gold_types = gold_types
 
     def get_mention_surface(self):
         concat = ""
@@ -172,14 +206,19 @@ class Sentence:
             concat = concat[:-1]
         return concat
 
+    def get_mention_surface_raw(self):
+        return self.get_mention_surface().replace("_", " ")
+
     def get_sent_str(self):
         concat = ""
-        for i in range(0, len(self.tokens)):
+        i = 0
+        while i < len(self.tokens):
             if i == self.mention_start:
                 concat += self.get_mention_surface()
-                i = self.mention_end
+                i = self.mention_end - 1
             else:
                 concat += self.tokens[i]
+            i += 1
             concat += " "
         if len(concat) > 0:
             concat = concat[:-1]

@@ -1,7 +1,8 @@
+from zoe_utils import DataReader
 from zoe_utils import ElmoProcessor
 from zoe_utils import EsaProcessor
+from zoe_utils import Evaluator
 from zoe_utils import InferenceProcessor
-from zoe_utils import Sentence
 
 
 class ZoeRunner:
@@ -10,22 +11,28 @@ class ZoeRunner:
         self.elmo_processor = ElmoProcessor()
         self.esa_processor = EsaProcessor()
         self.inference_processor = InferenceProcessor("figer")
+        self.evaluator = Evaluator()
 
     #
-    # tokens: a list of tokens
-    def process_sentence(self, tokens):
-        pass
+    # sentence: a sentence in Sentence data-structure
+    def process_sentence(self, sentence):
+        esa_candidates = self.esa_processor.get_candidates(sentence)
+        print(esa_candidates)
+        elmo_candidates = self.elmo_processor.rank_candidates(sentence, esa_candidates)
+        print(elmo_candidates)
+        types = self.inference_processor.inference(sentence, elmo_candidates, esa_candidates)
+        print(types)
+        sentence.set_predictions(types)
+        return sentence
 
-    def fun(self):
-        fun_sentence = Sentence(['Barack', 'Obama', 'is', 'a', 'good', 'president', '.'], 0, 2, "")
-        print(fun_sentence.get_mention_surface())
-        print(fun_sentence.get_sent_str())
-        print(self.inference_processor.get_prob_title("usa"))
-        print(self.inference_processor.get_prob_title("barack"))
-        candidates = self.esa_processor.get_candidates(fun_sentence)
-        selected = self.elmo_processor.rank_candidates(fun_sentence, candidates)
-        print(selected)
+    def evaluate_dataset(self, file_name, mode):
+        self.inference_processor = InferenceProcessor(mode)
+        dataset = DataReader(file_name)
+        to_evaluate = []
+        for sentence in dataset.sentences:
+            to_evaluate.append(self.process_sentence(sentence))
+        self.evaluator.print_performance(to_evaluate)
 
 
 runner = ZoeRunner()
-runner.fun()
+runner.evaluate_dataset("data/FIGER/test_sampled.json", "figer")

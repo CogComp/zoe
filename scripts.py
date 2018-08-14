@@ -1,3 +1,4 @@
+import os
 import pickle
 
 
@@ -104,8 +105,32 @@ def convert_prob(prob_file_name, n2c_fil2_name):
         pickle.dump(prob_map, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 
-#
-# TODO: Check if all required files are here
-def check_data_file_integrity():
-    pass
+def convert_cached_embeddings(raw_file_name, output_file_name):
+    ret_map = {}
+    max_bytes = 2 ** 31 - 1
+    with open(raw_file_name) as f:
+        for line in f:
+            line = line.strip()
+            token = line.split("\t")[0]
+            vals = line.split("\t")[1].split(",")
+            vec = []
+            for val in vals:
+                vec.append(float(val))
+            ret_map[token] = vec
+    bytes_out = pickle.dumps(ret_map, protocol=pickle.HIGHEST_PROTOCOL)
+    with open(output_file_name, 'wb') as handle:
+        for idx in range(0, len(bytes_out), max_bytes):
+            handle.write(bytes_out[idx:idx + max_bytes])
 
+
+def check_data_file_integrity():
+    file_list = [
+        'data/esa/esa.pickle',
+        'data/esa/freq.pickle',
+        'data/esa/invcount.pickle',
+        'data/prior_prob.pickle',
+        'data/sent_example.pickle',
+        'data/title2freebase.pickle',
+    ]
+    for file in file_list:
+        assert(os.path.isfile(file))

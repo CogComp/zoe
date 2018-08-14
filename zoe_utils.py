@@ -96,7 +96,7 @@ class ElmoProcessor:
     def rank_candidates(self, sentence, candidates):
         sentences_to_process = []
         candidates = [x[0] for x in candidates]
-        if not sentence.get_mention_surface() in self.target_embedding_map:
+        if sentence.get_mention_surface() not in self.target_embedding_map:
             sentences_to_process.append(sentence.get_sent_str())
         for candidate in candidates:
             if candidate not in self.sent_example_map:
@@ -233,12 +233,13 @@ class InferenceProcessor:
 
     def get_mapped_types_of_title(self, title):
         if title not in self.freebase_map:
-            return []
-        freebase_types = self.freebase_map[title]
+            return set()
+        freebase_types = self.freebase_map[title].split(",")
         mapped_set = set()
         for t in freebase_types:
-            if t in self.mapping:
-                mapped_set.add(self.mapping[t])
+            converted_type = "/" + t.replace(".", "/")
+            if converted_type in self.mapping:
+                mapped_set.add(self.mapping[converted_type])
         return mapped_set
 
     #
@@ -254,20 +255,21 @@ class InferenceProcessor:
         if title not in self.freebase_map:
             return []
         mapped_set = self.get_mapped_types_of_title(title)
+        mapped_set_list = list(mapped_set)
         for t in mapped_set:
             if len(t.split("/")) >= 2:
-                mapped_set.add("/" + t.split("/")[1])
-        return self.get_final_types(mapped_set)
+                mapped_set_list.append("/" + t.split("/")[1])
+        return self.get_final_types(set(mapped_set_list))
 
     def get_voted_coarse_type_of_title(self, title):
         mapped_set = self.get_mapped_types_of_title(title)
         coarse_freq = {}
         for t in mapped_set:
-            key = "/" + t.split("\t")[1]
+            key = "/" + t.split("/")[1]
             if key in coarse_freq:
                 coarse_freq[key] = coarse_freq[key] + 1
             else:
-                coarse_freq = 1
+                coarse_freq[key] = 1
         sorted_freq = sorted(coarse_freq.items(), key=lambda kv: kv[1], reverse=True)
         return sorted_freq[0][0]
 
@@ -301,16 +303,16 @@ class InferenceProcessor:
             for t in self.get_types_of_title(title):
                 if t in ret_map:
                     ret_map[t] = ret_map[t] + score
-                    ret_map_freq = ret_map_freq[t] + 1.0
+                    ret_map_freq[t] = ret_map_freq[t] + 1.0
                 else:
                     ret_map[t] = score
-                    ret_map_freq = 1.0
+                    ret_map_freq[t] = 1.0
         for key in ret_map:
             ret_map[key] = ret_map[key] / ret_map_freq[key]
         return ret_map
 
     def get_inferred_types(self, selected, candidates, elmo_type_score, from_prior):
-        if len(self.get_elmo_type_scores(selected)) == 0:
+        if len(self.get_mapped_types_of_title(selected)) == 0:
             return []
         coarse_type = self.get_voted_coarse_type_of_title(selected)
         filtered_types = set()
@@ -348,7 +350,7 @@ class InferenceProcessor:
 
         to_be_removed_types = set()
         for t in ret_types:
-            if t.split("\t") <= 2:
+            if len(t.split("\t")) <= 2:
                 continue
             for compare_type in freq_map:
                 if compare_type.startswith(coarse_type) and compare_type not in ret_types and elmo_type_score[compare_type] > elmo_type_score[t]:
@@ -437,6 +439,35 @@ class Evaluator:
 
     def __init__(self):
         self.sentences = []
+        self.total_gold_types = 0
+        self.total_predicted_types = 0
+        self.total_matches = 0
+        self.total_macro_precision = 0.0
+        self.total_macro_recall = 0.0
+        self.perfect_match = 0
+
+    @staticmethod
+    def compute_matches(set_a, set_b):
+        count = 0
+        for item in set_a:
+            if item in set_b:
+                count += 1
+        return count
+
+    @staticmethod
+    def get_if_perfect_match(set_a, set_b):
+        if len(set_a) == len(set_b):
+            for item in set_a:
+                if item not in set_b:
+                    return False
+            return True
+        return False
+
+    @staticmethod
+    def compute_f1(precision, recall):
+        if precision + recall == 0.0:
+            return 0.0
+        return 2 * precision * recall / (precision + recall)
 
     def print_performance(self, sentences):
         self.sentences = sentences
@@ -444,8 +475,45 @@ class Evaluator:
             if len(sentence.gold_types) == 0:
                 print("[ERROR]: encountered examples without correct answer.")
                 return
+            matches = self.compute_matches(sentence.gold_types, sentence.predicted_types)
+            self.total_matches += matches
+            self.total_gold_types += len(sentence.gold_types)
+            self.total_predicted_types += len(sentence.predicted_types)
+            if len(sentence.predicted_types) > 0:
+                self.total_macro_precision += float(matches) / float(len(sentence.predicted_types))
+            if len(sentence.gold_types) > 0:
+                self.total_macro_recall += float(matches) / float(len(sentence.gold_types))
+            if self.get_if_perfect_match(sentence.gold_types, sentence.predicted_types):
+                self.perfect_match += 1
+        strict_accuracy = 0.0
+        if len(self.sentences) > 0:
+            strict_accuracy = float(self.perfect_match) / float(len(self.sentences))
 
-    # TODO: finish the rest
+        micro_precision = 0.0
+        if self.total_predicted_types > 0.0:
+            micro_precision = float(self.total_matches) / float(self.total_predicted_types)
+        micro_recall = 0.0
+        if self.total_gold_types > 0.0:
+            micro_recall = float(self.total_matches) / float(self.total_gold_types)
+        micro_f1 = self.compute_f1(micro_precision, micro_recall)
+
+        macro_precision = 0.0
+        macro_recall = 0.0
+        if len(self.sentences) > 0:
+            macro_precision = float(self.total_macro_precision) / float(len(self.sentences))
+            macro_recall = float(self.total_macro_recall) / float(len(self.sentences))
+        macro_f1 = self.compute_f1(macro_precision, macro_recall)
+
+        print("=========Performance==========")
+        print("Strict Accuracy:\t" + str(strict_accuracy))
+        print("---------------")
+        print("Micro Precision:\t" + str(micro_precision))
+        print("Micro Recall:\t" + str(micro_recall))
+        print("Micro F1:\t" + str(micro_f1))
+        print("---------------")
+        print("Macro Precision:\t" + str(macro_precision))
+        print("Macro Recall:\t" + str(macro_recall))
+        print("Macro F1:\t" + str(macro_f1))
 
 
 class DataReader:
@@ -453,6 +521,7 @@ class DataReader:
     def __init__(self, data_file_name):
         self.sentences = []
         if not os.path.isfile(data_file_name):
+            print("[ERROR] No sentences read.")
             return
         with open(data_file_name) as f:
             for line in f:

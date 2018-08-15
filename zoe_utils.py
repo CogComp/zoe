@@ -225,6 +225,7 @@ class InferenceProcessor:
         return current_set
 
     def get_prob_title(self, surface):
+        surface = surface.lower()
         if surface in self.prior_prob_map:
             prior_prob = self.prior_prob_map[surface]
             if prior_prob[1] > self.PROB_TRUST_THRESHOLD:
@@ -245,7 +246,7 @@ class InferenceProcessor:
     #
     # Note: slightly different than Java version
     def get_coarse_types_of_title(self, title):
-        fine_types = self.get_types_of_title(title)
+        fine_types = self.get_mapped_types_of_title(title)
         ret = set()
         for t in fine_types:
             ret.add("/" + t.split("/")[1])
@@ -270,8 +271,9 @@ class InferenceProcessor:
                 coarse_freq[key] = coarse_freq[key] + 1
             else:
                 coarse_freq[key] = 1
-        sorted_freq = sorted(coarse_freq.items(), key=lambda kv: kv[1], reverse=True)
-        return sorted_freq[0][0]
+        pairs = list(coarse_freq.items())
+        pairs.sort(key=lambda kv: kv[1], reverse=True)
+        return pairs[0][0]
 
     def compute_set_freq(self, titles):
         freq_map = {}
@@ -314,6 +316,7 @@ class InferenceProcessor:
     def get_inferred_types(self, selected, candidates, elmo_type_score, from_prior):
         if len(self.get_mapped_types_of_title(selected)) == 0:
             return []
+        candidates = [x[0] for x in candidates]
         coarse_type = self.get_voted_coarse_type_of_title(selected)
         filtered_types = set()
         filtered_types.add(coarse_type)
@@ -341,22 +344,21 @@ class InferenceProcessor:
             consider_types = filtered_types
             voting_threshold = self.VOTING_THRESHOLD_PRIOR
 
-        ret_types = set()
-        ret_types.add(coarse_type)
+        selected_types.add(coarse_type)
         for t in consider_types:
             if t in freq_map:
                 if float(freq_map[t]) > float(total) * voting_threshold:
-                    ret_types.add(t)
+                    selected_types.add(t)
 
         to_be_removed_types = set()
-        for t in ret_types:
+        for t in selected_types:
             if len(t.split("\t")) <= 2:
                 continue
             for compare_type in freq_map:
-                if compare_type.startswith(coarse_type) and compare_type not in ret_types and elmo_type_score[compare_type] > elmo_type_score[t]:
+                if compare_type.startswith(coarse_type) and compare_type not in selected_types and elmo_type_score[compare_type] > elmo_type_score[t]:
                     to_be_removed_types.add(t)
         final_ret_types = set()
-        for t in ret_types:
+        for t in selected_types:
             if t not in to_be_removed_types:
                 final_ret_types.add(t)
         return final_ret_types
@@ -389,10 +391,16 @@ class InferenceProcessor:
                     from_prior = True
         # Now we have the most trust-worthy title
         elmo_type_score = self.get_elmo_type_scores(elmo_candidates)
-        if selected_title in elmo_candidates:
-            elmo_candidates.remove(selected_title)
-        elmo_candidates.insert(0, selected_title)
+        if from_prior and selected_title not in elmo_candidates:
+            elmo_candidates.insert(0, (selected_title, 1.0))
         inferred_types = self.get_inferred_types(selected_title, elmo_candidates, elmo_type_score, from_prior)
+        print(sentence.get_sent_str())
+        print(sentence.get_mention_surface())
+        print(sentence.gold_types)
+        print(inferred_types)
+        print(elmo_candidates)
+        print(selected_title)
+        print()
         return self.get_final_types(set(inferred_types))
 
 

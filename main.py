@@ -29,8 +29,14 @@ class ZoeRunner:
         dataset = DataReader(file_name)
         to_evaluate = []
         for sentence in dataset.sentences:
-            to_evaluate.append(self.process_sentence(sentence))
-            self.evaluator.print_performance(to_evaluate)
+            processed = self.process_sentence(sentence)
+            to_evaluate.append(processed)
+            evaluator = Evaluator()
+            evaluator.print_performance(to_evaluate)
+
+    def fun(self):
+        self.inference_processor = InferenceProcessor("figer")
+        print(self.inference_processor.get_mapped_types_of_title("Sony"))
 
 
 runner = ZoeRunner()

@@ -281,7 +281,7 @@ class InferenceProcessor:
                 mapped_set_list.append("/" + t.split("/")[1])
         return self.get_final_types(set(mapped_set_list))
 
-    def get_voted_coarse_type_of_title(self, title, candidates):
+    def get_voted_coarse_type_of_title(self, title, candidates, type_score):
         mapped_set = self.get_mapped_types_of_title(title)
         coarse_freq = {}
         for t in mapped_set:
@@ -302,15 +302,15 @@ class InferenceProcessor:
             for coarse_type_candidate in duel_titles:
                 if coarse_type_candidate in self.get_coarse_types_of_title(candidate):
                     if coarse_type_candidate in duel_freq_map:
-                        duel_freq_map[coarse_type_candidate] += 1
+                        duel_freq_map[coarse_type_candidate] += type_score[coarse_type_candidate]
                     else:
-                        duel_freq_map[coarse_type_candidate] = 1
+                        duel_freq_map[coarse_type_candidate] = type_score[coarse_type_candidate]
         pairs = list(duel_freq_map.items())
         pairs.sort(key=lambda kv: kv[1], reverse=True)
         coarse_type = pairs[0][0]
         for line in self.logic_mappings:
             line_group = line.split("\t")
-            if line_group[0] == "=" and coarse_type == line_group[1]:
+            if line_group[0] == "=" and coarse_type == line_group[1] and line_group[2] in mapped_set:
                 coarse_type = line_group[2]
         return coarse_type
 
@@ -338,9 +338,8 @@ class InferenceProcessor:
     def get_elmo_type_scores(self, candidates):
         ret_map = {}
         ret_map_freq = {}
-        for candidate in candidates:
-            title = candidate[0]
-            score = candidate[1]
+        for title in candidates:
+            score = candidates[title]
             for t in self.get_types_of_title(title):
                 if t in ret_map:
                     ret_map[t] = ret_map[t] + score
@@ -356,7 +355,7 @@ class InferenceProcessor:
         if len(self.get_mapped_types_of_title(selected)) == 0:
             return []
         candidates = [x[0] for x in candidates]
-        coarse_type = self.get_voted_coarse_type_of_title(selected, candidates)
+        coarse_type = self.get_voted_coarse_type_of_title(selected, candidates, elmo_type_score)
         filtered_types = set()
         filtered_types.add(coarse_type)
         for t in self.get_mapped_types_of_title(selected):
@@ -434,7 +433,12 @@ class InferenceProcessor:
                     selected_title = prob_title
                     from_prior = True
         # Now we have the most trust-worthy title
-        elmo_type_score = self.get_elmo_type_scores(elmo_candidates)
+        elmo_score_map = {}
+        for (title, score) in elmo_candidates:
+            elmo_score_map[title] = score
+        if from_prior:
+            elmo_score_map[selected_title] = 1.0
+        elmo_type_score = self.get_elmo_type_scores(elmo_score_map)
         inferred_types = self.get_inferred_types(selected_title, elmo_candidates, elmo_type_score, from_prior)
         print(sentence.get_sent_str())
         print(sentence.get_mention_surface())

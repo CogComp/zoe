@@ -1,3 +1,5 @@
+import pickle
+
 from zoe_utils import DataReader
 from zoe_utils import ElmoProcessor
 from zoe_utils import EsaProcessor
@@ -12,6 +14,7 @@ class ZoeRunner:
         self.esa_processor = EsaProcessor()
         self.inference_processor = InferenceProcessor("figer")
         self.evaluator = Evaluator()
+        self.evaluated = []
 
     #
     # sentence: a sentence in Sentence data-structure
@@ -27,18 +30,23 @@ class ZoeRunner:
         if mode == "figer":
             self.elmo_processor.load_cached_embeddings("data/FIGER/target.embedding.pickle", "data/FIGER/wikilinks.embedding.pickle")
         dataset = DataReader(file_name)
-        to_evaluate = []
         for sentence in dataset.sentences:
             processed = self.process_sentence(sentence)
-            to_evaluate.append(processed)
+            self.evaluated.append(processed)
             evaluator = Evaluator()
-            evaluator.print_performance(to_evaluate)
+            evaluator.print_performance(self.evaluated)
+
+    def save(self, file_name):
+        with open(file_name, "wb") as handle:
+            pickle.dump(self.evaluated, handle, pickle.HIGHEST_PROTOCOL)
 
     def fun(self):
         self.inference_processor = InferenceProcessor("figer")
-        t = self.inference_processor.get_mapped_types_of_title("United_States")
+        t = self.inference_processor.get_mapped_types_of_title("Species")
         print(t)
 
 
 runner = ZoeRunner()
-runner.evaluate_dataset("data/FIGER/test_single.json", "figer")
+#runner.fun()
+runner.evaluate_dataset("data/FIGER/test_sampled.json", "figer")
+runner.save("data/FIGER/runlog.pickle")

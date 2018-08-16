@@ -4,6 +4,7 @@ import os
 import pickle
 
 import numpy as np
+import regex
 import tensorflow as tf
 
 from bilm import dump_bilm_embeddings_inner, dump_bilm_embeddings
@@ -205,23 +206,24 @@ class InferenceProcessor:
             self.prior_prob_map = pickle.load(handle)
         with open("data/title2freebase.pickle", "rb") as handle:
             self.freebase_map = pickle.load(handle)
+        self.logic_mappings = []
+        logic_mapping_file_name = "mapping/" + self.mode + ".logic.mapping"
+        with open(logic_mapping_file_name) as f:
+            for line in f:
+                line = line.strip()
+                self.logic_mappings.append(line)
 
     #
     # process logic mappings from *.logic.mapping
     def get_final_types(self, current_set):
-        logic_mapping_file_name = "mapping/" + self.mode + ".logic.mapping"
-        if not os.path.isfile(logic_mapping_file_name):
-            return current_set
-        with open(logic_mapping_file_name) as f:
-            for line in f:
-                line = line.strip()
-                line_group = line.split("\t")
-                if line_group[0] == "+":
-                    if line_group[1] in current_set:
-                        current_set.add(line_group[2])
-                else:
-                    if line_group[1] in current_set and line_group[2] in current_set:
-                        current_set.remove(line_group[2])
+        for line in self.logic_mappings:
+            line_group = line.split("\t")
+            if line_group[0] == "+":
+                if line_group[1] in current_set:
+                    current_set.add(line_group[2])
+            if line_group[1] == "-":
+                if line_group[1] in current_set and line_group[2] in current_set:
+                    current_set.remove(line_group[2])
         return current_set
 
     def get_prob_title(self, surface):
@@ -233,6 +235,22 @@ class InferenceProcessor:
         return ""
 
     def get_mapped_types_of_title(self, title):
+        if " " in title:
+            title = title.replace(" ", "_")
+        if regex.match(r'\d{4}', title):
+            return set()
+        if title.lower() == title:
+            concat = ""
+            for token in title.split("_"):
+                if len(token) == 0:
+                    continue
+                concat += token[0:1].upper()
+                if len(token) > 1:
+                    concat += token[1:]
+                concat += "_"
+            if len(concat) > 0:
+                concat = concat[:-1]
+            title = concat
         if title not in self.freebase_map:
             return set()
         freebase_types = self.freebase_map[title].split(",")
@@ -241,10 +259,13 @@ class InferenceProcessor:
             converted_type = "/" + t.replace(".", "/")
             if converted_type in self.mapping:
                 mapped_set.add(self.mapping[converted_type])
+        if ("organization.non_profit_organization" in freebase_types) or ("education.academic_institution" in freebase_types):
+            if "/organization/company" in mapped_set:
+                mapped_set.remove("/organization/company")
+        if ("/organization/educational_institution" in mapped_set) and ("/organization/company" in mapped_set):
+            mapped_set.remove("/organization/company")
         return mapped_set
 
-    #
-    # Note: slightly different than Java version
     def get_coarse_types_of_title(self, title):
         fine_types = self.get_mapped_types_of_title(title)
         ret = set()
@@ -253,8 +274,6 @@ class InferenceProcessor:
         return ret
 
     def get_types_of_title(self, title):
-        if title not in self.freebase_map:
-            return []
         mapped_set = self.get_mapped_types_of_title(title)
         mapped_set_list = list(mapped_set)
         for t in mapped_set:
@@ -262,7 +281,7 @@ class InferenceProcessor:
                 mapped_set_list.append("/" + t.split("/")[1])
         return self.get_final_types(set(mapped_set_list))
 
-    def get_voted_coarse_type_of_title(self, title):
+    def get_voted_coarse_type_of_title(self, title, candidates):
         mapped_set = self.get_mapped_types_of_title(title)
         coarse_freq = {}
         for t in mapped_set:
@@ -273,7 +292,27 @@ class InferenceProcessor:
                 coarse_freq[key] = 1
         pairs = list(coarse_freq.items())
         pairs.sort(key=lambda kv: kv[1], reverse=True)
-        return pairs[0][0]
+        highest_score = pairs[0][1]
+        duel_titles = set()
+        for pair in pairs:
+            if pair[1] == highest_score:
+                duel_titles.add(pair[0])
+        duel_freq_map = {}
+        for candidate in candidates:
+            for coarse_type_candidate in duel_titles:
+                if coarse_type_candidate in self.get_coarse_types_of_title(candidate):
+                    if coarse_type_candidate in duel_freq_map:
+                        duel_freq_map[coarse_type_candidate] += 1
+                    else:
+                        duel_freq_map[coarse_type_candidate] = 1
+        pairs = list(duel_freq_map.items())
+        pairs.sort(key=lambda kv: kv[1], reverse=True)
+        coarse_type = pairs[0][0]
+        for line in self.logic_mappings:
+            line_group = line.split("\t")
+            if line_group[0] == "=" and coarse_type == line_group[1]:
+                coarse_type = line_group[2]
+        return coarse_type
 
     def compute_set_freq(self, titles):
         freq_map = {}
@@ -317,7 +356,7 @@ class InferenceProcessor:
         if len(self.get_mapped_types_of_title(selected)) == 0:
             return []
         candidates = [x[0] for x in candidates]
-        coarse_type = self.get_voted_coarse_type_of_title(selected)
+        coarse_type = self.get_voted_coarse_type_of_title(selected, candidates)
         filtered_types = set()
         filtered_types.add(coarse_type)
         for t in self.get_mapped_types_of_title(selected):
@@ -325,10 +364,14 @@ class InferenceProcessor:
                 filtered_types.add(t)
         freq_map = {}
         total = 0
+        trusted_candidates = set()
+        trusted_candidates.add(selected)
         for candidate in candidates[:self.TRUST_CANDIDATE_SIZE]:
+            trusted_candidates.add(candidate)
+        for candidate in trusted_candidates:
             if coarse_type in self.get_coarse_types_of_title(candidate):
                 total += 1
-                for t in self.get_types_of_title(candidate):
+                for t in self.get_mapped_types_of_title(candidate):
                     if t.startswith(coarse_type):
                         if t in freq_map:
                             freq_map[t] = freq_map[t] + 1
@@ -352,11 +395,12 @@ class InferenceProcessor:
 
         to_be_removed_types = set()
         for t in selected_types:
-            if len(t.split("\t")) <= 2:
+            if len(t.split("/")) <= 2:
                 continue
             for compare_type in freq_map:
-                if compare_type.startswith(coarse_type) and compare_type not in selected_types and elmo_type_score[compare_type] > elmo_type_score[t]:
-                    to_be_removed_types.add(t)
+                if compare_type in elmo_type_score and t in elmo_type_score:
+                    if compare_type.startswith(coarse_type) and (compare_type not in selected_types) and elmo_type_score[compare_type] > elmo_type_score[t]:
+                        to_be_removed_types.add(t)
         final_ret_types = set()
         for t in selected_types:
             if t not in to_be_removed_types:
@@ -391,13 +435,11 @@ class InferenceProcessor:
                     from_prior = True
         # Now we have the most trust-worthy title
         elmo_type_score = self.get_elmo_type_scores(elmo_candidates)
-        if from_prior and selected_title not in elmo_candidates:
-            elmo_candidates.insert(0, (selected_title, 1.0))
         inferred_types = self.get_inferred_types(selected_title, elmo_candidates, elmo_type_score, from_prior)
         print(sentence.get_sent_str())
         print(sentence.get_mention_surface())
         print(sentence.gold_types)
-        print(inferred_types)
+        print(self.get_final_types(set(inferred_types)))
         print(elmo_candidates)
         print(selected_title)
         print()

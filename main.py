@@ -36,8 +36,9 @@ class ZoeRunner:
 
     def fun(self):
         self.inference_processor = InferenceProcessor("figer")
-        print(self.inference_processor.get_mapped_types_of_title("Sony"))
+        t = self.inference_processor.get_mapped_types_of_title("United_States")
+        print(t)
 
 
 runner = ZoeRunner()
-runner.evaluate_dataset("data/FIGER/test_sampled.json", "figer")
+runner.evaluate_dataset("data/FIGER/test_single.json", "figer")

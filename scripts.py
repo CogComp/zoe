@@ -74,7 +74,8 @@ def convert_freebase(freebase_file_name, freebase_sup_file_name):
                 continue
             key = line.split("\t")[0]
             val = line.split("\t")[1]
-            ret_map[key] = val
+            if key not in ret_map:
+                ret_map[key] = val
     with open('data/title2freebase.pickle', 'wb') as handle:
         pickle.dump(ret_map, handle, protocol=pickle.HIGHEST_PROTOCOL)
 

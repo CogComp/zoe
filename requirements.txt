@@ -2,3 +2,4 @@ h5py
 tensorflow
 bilm
 numpy
+regex

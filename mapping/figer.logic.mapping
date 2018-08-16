@@ -7,3 +7,5 @@
 -	/organization/sports_league	/organization/company
 +	/transportation/road	/location
 +	/livingthing	/living_thing
++	/living_thing	/livingthing
+=	/living_thing	/livingthing

@@ -95,3 +95,15 @@ and transform the data into a list of `Sentence`
 ## Reference 
 
 UNDER CONSTRUCTION
+
+
+## Citation
+See the following paper: 
+```
+@inproceedings{ZKTR18,
+    author = {Ben Zhou, Daniel Khashabi, Chen-Tse Tsai and Dan Roth },
+    title = {Zero-Shot Open Entity Typing as Type-Compatible Grounding},
+    booktitle = {EMNLP},
+    year = {2018},
+}
+```

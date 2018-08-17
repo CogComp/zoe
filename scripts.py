@@ -1,6 +1,6 @@
 import os
 import pickle
-
+import sys
 
 def convert_esa_map(esa_file_name, freq_file_name, invcount_file_name):
     esa_map = {}
@@ -124,7 +124,7 @@ def convert_cached_embeddings(raw_file_name, output_file_name):
             handle.write(bytes_out[idx:idx + max_bytes])
 
 
-def check_data_file_integrity():
+def check_data_file_integrity(mode=""):
     file_list = [
         'data/esa/esa.pickle',
         'data/esa/freq.pickle',
@@ -133,5 +133,31 @@ def check_data_file_integrity():
         'data/sent_example.pickle',
         'data/title2freebase.pickle',
     ]
-    for file in file_list:
-        assert(os.path.isfile(file))
+    corpus_supplements = []
+    if mode == "figer":
+        corpus_supplements = [
+            'data/FIGER/target.embedding.pickle',
+            'data/FIGER/wikilinks.embedding.pickle',
+            'mapping/figer.mapping',
+            'mapping/figer.logic.mapping'
+        ]
+    passed = True
+    for file in file_list + corpus_supplements:
+        if not os.path.isfile(file):
+            print("[ERROR]: Missing " + file)
+            passed = False
+    if not passed:
+        print("You have one or more file missing. Please refer to README for solution.")
+    else:
+        print("All required or suggested files are here. Go ahead and run experiments!")
+
+
+if __name__ == '__main__':
+    if len(sys.argv) < 2:
+        print("[ERROR]: No command given.")
+        exit(0)
+    if sys.argv[1] == "CHECKFILE":
+        if len(sys.argv) == 2:
+            check_data_file_integrity()
+        else:
+            check_data_file_integrity(sys.argv[2])

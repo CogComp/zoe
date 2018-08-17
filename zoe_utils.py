@@ -25,6 +25,9 @@ class ElmoProcessor:
         self.wikilinks_embedding_map = {}
         self.computed_elmo_map = {}
 
+    """
+    @sentences: A list of string
+    """
     def process_batch(self, sentences):
         tokenized_context = [sentence.split() for sentence in sentences]
         freq_map = {}
@@ -63,6 +66,9 @@ class ElmoProcessor:
         tf.reset_default_graph()
         return ret_map_avg
 
+    """
+    @sentences: A string
+    """
     def process_single(self, sentence):
         tokens = sentence.split()
         embedding = dump_bilm_embeddings_inner(
@@ -76,6 +82,9 @@ class ElmoProcessor:
         tf.reset_default_graph()
         return ret_map
 
+    """
+    @vec_a, vec_b: A list of numbers
+    """
     @staticmethod
     def cosine(vec_a, vec_b):
         assert(len(vec_a) == len(vec_b))
@@ -88,12 +97,22 @@ class ElmoProcessor:
             score_mul += float(vec_a[i]) * float(vec_b[i])
         return score_mul / math.sqrt(square_a * square_b)
 
+    """
+    Helper function that loads pre-computed ELMo representations to save time.
+    @target_file_name: A pickle file that caches test-corpus
+    @wikilinks_file_name: A pickle file that caches Wikilinks sentences generated from the test-corpus
+    """
     def load_cached_embeddings(self, target_file_name, wikilinks_file_name):
         with open(target_file_name, "rb") as handle:
             self.target_embedding_map = pickle.load(handle)
         with open(wikilinks_file_name, "rb") as handle:
             self.wikilinks_embedding_map = pickle.load(handle)
 
+    """
+    @sentence: A zoe_utils.Sentence
+    @candidates: A list of (string, float) pair
+    @return: A list of (string, float) pair of title to ELMo scores
+    """
     def rank_candidates(self, sentence, candidates):
         sentences_to_process = []
         candidates = [x[0] for x in candidates]
@@ -146,6 +165,10 @@ class EsaProcessor:
         with open('data/esa/invcount.pickle', 'rb') as handle:
             self.invcount_map = pickle.load(handle)
 
+    """
+    @map_val: A map representation in string.
+              [key]::[val]|[key]::[val]|...
+    """
     @staticmethod
     def str2map(map_val):
         ret_map = {}
@@ -156,6 +179,10 @@ class EsaProcessor:
             ret_map[key] = float(val)
         return ret_map
 
+    """
+    @sentence: A zoe_utils.Sentence
+    @return: A list of (string, float) pair of title to ESA scores
+    """
     def get_candidates(self, sentence):
         tokens = sentence.tokens
         overall_map = {}
@@ -187,11 +214,17 @@ class EsaProcessor:
 
 class InferenceProcessor:
 
+    # P(title|surface) min threshold
     PROB_TRUST_THRESHOLD = 0.5
+    # The multiplier of the size of ESA candidates to ELMo candidates
     ELMO_TO_ESA_MULTIPLIER = 15.0
+    # Top N candidates we trust to vote for fine types
     TRUST_CANDIDATE_SIZE = 10
+    # A elmo score threshold above which a fine type will be added without voting
     MIN_ELMO_SCORE_THRESHOLD = 0.65
+    # Voting threshold when title is selected via ESA
     VOTING_THRESHOLD_NORMAL = 0.8
+    # Voting threshold when title is selected via P(title|surface)
     VOTING_THRESHOLD_PRIOR = 0.3
 
     def __init__(self, mode):
@@ -213,8 +246,10 @@ class InferenceProcessor:
                 line = line.strip()
                 self.logic_mappings.append(line)
 
-    #
-    # process logic mappings from *.logic.mapping
+    """
+    Process logic mappings (i.e. additional target_taxonomy to target_taxonomy mappings)
+    and then returns a list of adjusted types
+    """
     def get_final_types(self, current_set):
         for line in self.logic_mappings:
             line_group = line.split("\t")
@@ -226,6 +261,9 @@ class InferenceProcessor:
                     current_set.remove(line_group[2])
         return current_set
 
+    """
+    @surface: A string tokenized by spaces
+    """
     def get_prob_title(self, surface):
         surface = surface.lower()
         if surface in self.prior_prob_map:
@@ -234,6 +272,10 @@ class InferenceProcessor:
                 return prior_prob[0]
         return ""
 
+    """
+    Get direct mapped types from FreeBase->Target mappings
+    @title: A string of title
+    """
     def get_mapped_types_of_title(self, title):
         if " " in title:
             title = title.replace(" ", "_")
@@ -266,6 +308,9 @@ class InferenceProcessor:
             mapped_set.remove("/organization/company")
         return mapped_set
 
+    """
+    @title: A string 
+    """
     def get_coarse_types_of_title(self, title):
         fine_types = self.get_mapped_types_of_title(title)
         ret = set()
@@ -273,6 +318,9 @@ class InferenceProcessor:
             ret.add("/" + t.split("/")[1])
         return ret
 
+    """
+    @title: A string
+    """
     def get_types_of_title(self, title):
         mapped_set = self.get_mapped_types_of_title(title)
         mapped_set_list = list(mapped_set)
@@ -281,6 +329,12 @@ class InferenceProcessor:
                 mapped_set_list.append("/" + t.split("/")[1])
         return self.get_final_types(set(mapped_set_list))
 
+    """
+    Vote for a best coarse type via candidates' ELMo scores
+    @title: A string
+    @candidates: A list of string
+    @type_score: A map of (string: float)
+    """
     def get_voted_coarse_type_of_title(self, title, candidates, type_score):
         mapped_set = self.get_mapped_types_of_title(title)
         coarse_freq = {}
@@ -314,6 +368,9 @@ class InferenceProcessor:
                 coarse_type = line_group[2]
         return coarse_type
 
+    """
+    @titles: A list of string
+    """
     def compute_set_freq(self, titles):
         freq_map = {}
         for title in titles:
@@ -325,6 +382,10 @@ class InferenceProcessor:
                     freq_map[t] = 1
         return freq_map
 
+    """
+    @candidates: A list of string
+    @type_scores: A map of (string: float)
+    """
     def select_in_order(self, candidates, type_scores):
         for candidate in candidates:
             if len(self.get_mapped_types_of_title(candidate)) == 0:
@@ -335,6 +396,10 @@ class InferenceProcessor:
                     return candidate
         return candidates[0]
 
+    """
+    Get a type's average ELMo score
+    @candidates: A map of (string: float)
+    """
     def get_elmo_type_scores(self, candidates):
         ret_map = {}
         ret_map_freq = {}
@@ -351,6 +416,13 @@ class InferenceProcessor:
             ret_map[key] = ret_map[key] / ret_map_freq[key]
         return ret_map
 
+    """
+    Helper function that infer types
+    @selected: A string of title that is selected as best one
+    @candidates: A list of (string: float) pairs
+    @elmo_type_score: results from self.get_elmo_type_scores()
+    @from_prior: A bool indicating whether @selected comes from P(title|surface)
+    """
     def get_inferred_types(self, selected, candidates, elmo_type_score, from_prior):
         if len(self.get_mapped_types_of_title(selected)) == 0:
             return []
@@ -406,10 +478,13 @@ class InferenceProcessor:
                 final_ret_types.add(t)
         return final_ret_types
 
-    #
-    # sentence: a Sentence structure
-    # elmo_candidates: (title, score) pairs
-    # esa_candidates: (title, score) pairs
+    """
+    Inference utility function which make predictions and set results to the input @sentence
+    @sentence: A zoe_utils.Sentence
+    @elmo_candidates: A list of (title, score) pairs
+    @esa_candidates: A list of (title, score) pairs
+    @return: None
+    """
     def inference(self, sentence, elmo_candidates, esa_candidates):
         elmo_titles = [x[0] for x in elmo_candidates]
         esa_titles = [x[0] for x in esa_candidates]
@@ -440,14 +515,12 @@ class InferenceProcessor:
             elmo_score_map[selected_title] = 1.0
         elmo_type_score = self.get_elmo_type_scores(elmo_score_map)
         inferred_types = self.get_inferred_types(selected_title, elmo_candidates, elmo_type_score, from_prior)
-        print(sentence.get_sent_str())
-        print(sentence.get_mention_surface())
-        print(sentence.gold_types)
-        print(self.get_final_types(set(inferred_types)))
-        print(elmo_candidates)
-        print(selected_title)
-        print()
-        return self.get_final_types(set(inferred_types))
+        final_types = self.get_final_types(set(inferred_types))
+        # set predictions
+        sentence.set_predictions(final_types)
+        sentence.set_esa_candidates(esa_titles)
+        sentence.set_elmo_candidates(elmo_titles)
+        sentence.set_selected_candidate(selected_title)
 
 
 class Sentence:
@@ -458,7 +531,13 @@ class Sentence:
         self.mention_end = int(mention_end)
         self.gold_types = gold_types
         self.predicted_types = []
+        self.esa_candidate_titles = []
+        self.elmo_candidate_titles = []
+        self.selected_candidate = ""
 
+    """
+    @returns: A string tokenized by "_"
+    """
     def get_mention_surface(self):
         concat = ""
         for i in range(self.mention_start, self.mention_end):
@@ -467,6 +546,9 @@ class Sentence:
             concat = concat[:-1]
         return concat
 
+    """
+    @returns: A string tokenized by " "
+    """
     def get_mention_surface_raw(self):
         return self.get_mention_surface().replace("_", " ")
 
@@ -487,6 +569,24 @@ class Sentence:
 
     def set_predictions(self, predicted_types):
         self.predicted_types = predicted_types
+
+    def set_esa_candidates(self, esa_candidate_titles):
+        self.esa_candidate_titles = esa_candidate_titles
+
+    def set_elmo_candidates(self, elmo_candidate_titles):
+        self.elmo_candidate_titles = elmo_candidate_titles
+
+    def set_selected_candidate(self, selected):
+        self.selected_candidate = selected
+
+    def print_self(self):
+        print(self.get_sent_str())
+        print(self.get_mention_surface())
+        print("Gold\t: " + str(self.gold_types))
+        print("Predicted\t" + str(self.predicted_types))
+        print("ESA Candidate Titles: " + str(self.esa_candidate_titles))
+        print("ELMo Candidate Titles: " + str(self.elmo_candidate_titles))
+        print("Selected Candidate: " + str(self.selected_candidate))
 
 
 class Evaluator:
@@ -568,6 +668,7 @@ class Evaluator:
         print("Macro Precision:\t" + str(macro_precision))
         print("Macro Recall:\t" + str(macro_recall))
         print("Macro F1:\t" + str(macro_f1))
+        print("==============================")
 
 
 class DataReader:

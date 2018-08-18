@@ -24,6 +24,7 @@ Re-written with modern packages written in Cython like numpy may hugely improve 
 
 #### Prerequisites
 
+* Minimum 8G available disk space and 16G memory. (Lower specs will not work)
 * Python 3.X (Mostly tested on 3.5)
 * A POSIX OS (Windows not tested)
 * `virtualenv` if you are installing with script (check if `virtualenv` command works)

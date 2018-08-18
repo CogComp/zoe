@@ -42,7 +42,7 @@ class ZoeRunner:
             return
         self.inference_processor = InferenceProcessor(mode)
         if mode == "figer":
-            self.elmo_processor.load_cached_embeddings("data/FIGER/target.embedding.pickle", "data/FIGER/wikilinks.embedding.pickle")
+            self.elmo_processor.load_cached_embeddings("data/FIGER/target.min.embedding.pickle", "data/FIGER/wikilinks.min.embedding.pickle")
         dataset = DataReader(file_name)
         for sentence in dataset.sentences:
             processed = self.process_sentence(sentence)
@@ -69,4 +69,4 @@ if __name__ == "__main__":
     if sys.argv[1] == "figer":
         runner = ZoeRunner()
         runner.evaluate_dataset("data/FIGER/test_sampled.json", "figer")
-        runner.save("data/FIGER/runlog.pickle")
+        runner.save("data/log/runlog.pickle")

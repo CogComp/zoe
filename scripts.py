@@ -124,6 +124,22 @@ def convert_cached_embeddings(raw_file_name, output_file_name):
             handle.write(bytes_out[idx:idx + max_bytes])
 
 
+def reduce_cache_file_size(cache_pickle_file_name, title_file_name, out_file_name):
+    with open(cache_pickle_file_name, "rb") as handle:
+        cache_map = pickle.load(handle)
+    title_set = set()
+    with open(title_file_name, "r") as f:
+        for line in f:
+            line = line.strip()
+            title_set.add(line)
+    ret_map = {}
+    for key in cache_map:
+        if key in title_set:
+            ret_map[key] = cache_map[key]
+    with open(out_file_name, "wb") as handle:
+        pickle.dump(ret_map, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+
 def check_data_file_integrity(mode=""):
     file_list = [
         'data/esa/esa.pickle',

@@ -54,7 +54,7 @@ in order to check figer caches etc.
 ### Run the system
 
 Currently you can do the following:
-* Run experiment on sampled FIGER test set: `python3 main.py figer` (note this usually takes 2 hours)
+* Run experiment on FIGER test set (randomly sampled as the paper): `python3 main.py figer` (note this usually takes 2 hours)
 
 Experiments on much larger datasets are not available yet due to efficiency reasons (see Introduction),
  but we are working on it.

@@ -12,11 +12,10 @@ that contains the same core, without experimental code. It's solely for
 the purpose of demoing the algorithm and validating key results. 
 
 The results may slightly differ from published numbers, due to the randomness in Java's 
-HashSet iteration order. The difference should be within 0.5%.
+HashSet and Python set's iteration order. The difference should be within 0.5%.
 
-A major flaw of this re-written demo is the speed. It's much slower comparing to it's
-original version in Java, due to the usage of naive data structures like Python lists.
-Re-written with modern packages written in Cython like numpy may hugely improve it.
+A major flaw of this system is the speed of running new sentences, due to ELMo processing.
+We have cached ELMo results for experiments (like figer), and we will further cache more results.
 
 ## Usage
 
@@ -55,14 +54,12 @@ in order to check figer caches etc.
 ### Run the system
 
 Currently you can do the following:
-* Run experiment on FIGER test set (randomly sampled as the paper): `python3 main.py figer` (note this usually takes 2 hours)
+* Run experiment on FIGER test set (randomly sampled as the paper): `python3 main.py figer` (takes a few minutes with cache)
 
-Experiments on much larger datasets are not available yet due to efficiency reasons (see Introduction),
- but we are working on it.
+We will provide experiments on other datasets soon.
 
-However, you can still run on random sentences of your choice.
+It's generally an expensive operation to run on new sentences, but you can still do it.
 Please refer to `main.py` to see how you can test on your own data. 
-However, note that it usually takes a long time since ELMo processing is a very expensive operation.
 
 ## Engineering details
 

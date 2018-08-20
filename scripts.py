@@ -168,6 +168,25 @@ def check_data_file_integrity(mode=""):
         print("All required or suggested files are here. Go ahead and run experiments!")
 
 
+def compare_runlogs(runlog_file_a, runlog_file_b):
+    if not os.path.isfile(runlog_file_a) or not os.path.isfile(runlog_file_b):
+        print("Invalid input file names")
+    with open (runlog_file_a, "rb") as handle:
+        log_a = pickle.load(handle)
+    with open (runlog_file_b, "rb") as handle:
+        log_b = pickle.load(handle)
+    for sentence in log_a:
+        for compare_sentence in log_b:
+            if sentence.get_sent_str() == compare_sentence.get_sent_str():
+                if sentence.get_mention_surface() == compare_sentence.get_mention_surface():
+                    if sentence.predicted_types != compare_sentence.predicted_types:
+                        print(sentence.get_sent_str())
+                        print(sentence.get_mention_surface())
+                        print(sentence.gold_types)
+                        print("Log A prediction: " + str(sentence.predicted_types))
+                        print("Log B prediction: " + str(compare_sentence.predicted_types))
+
+
 if __name__ == '__main__':
     if len(sys.argv) < 2:
         print("[ERROR]: No command given.")
@@ -177,3 +196,7 @@ if __name__ == '__main__':
             check_data_file_integrity()
         else:
             check_data_file_integrity(sys.argv[2])
+    if sys.argv[1] == "COMPARE":
+        if len(sys.argv) < 4:
+            print("Need two files for comparison.")
+        compare_runlogs(sys.argv[2], sys.argv[3])

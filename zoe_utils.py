@@ -8,13 +8,14 @@ import regex
 import tensorflow as tf
 
 from bilm import dump_bilm_embeddings_inner, dump_bilm_embeddings
+from scipy.spatial.distance import cosine
 
 
 class ElmoProcessor:
 
     RANKED_RETURN_NUM = 20
 
-    def __init__(self):
+    def __init__(self, allow_tensorflow):
         self.datadir = os.path.join('bilm-tf', 'model')
         self.vocab_file = os.path.join(self.datadir, 'vocab_test.txt')
         self.options_file = os.path.join(self.datadir, 'options.json')
@@ -24,6 +25,7 @@ class ElmoProcessor:
         self.target_embedding_map = {}
         self.wikilinks_embedding_map = {}
         self.computed_elmo_map = {}
+        self.allow_tensorflow = allow_tensorflow
 
     """
     @sentences: A list of string
@@ -86,16 +88,10 @@ class ElmoProcessor:
     @vec_a, vec_b: A list of numbers
     """
     @staticmethod
-    def cosine(vec_a, vec_b):
-        assert(len(vec_a) == len(vec_b))
-        square_a = 0.0
-        square_b = 0.0
-        score_mul = 0.0
-        for i in range(0, len(vec_a)):
-            square_a += float(vec_a[i]) * float(vec_a[i])
-            square_b += float(vec_b[i]) * float(vec_b[i])
-            score_mul += float(vec_a[i]) * float(vec_b[i])
-        return score_mul / math.sqrt(square_a * square_b)
+    def cosine_helper(vec_a, vec_b):
+        vec_a_np = np.array(vec_a)
+        vec_b_np = np.array(vec_b)
+        return 1.0 - cosine(vec_a_np, vec_b_np)
 
     """
     Helper function that loads pre-computed ELMo representations to save time.
@@ -129,7 +125,7 @@ class ElmoProcessor:
             for i in range(0, min(len(example_sentences), 10)):
                 sentences_to_process.append(example_sentences[i])
         elmo_map = {}
-        if len(sentences_to_process) > 0:
+        if len(sentences_to_process) > 0 and self.allow_tensorflow:
             elmo_map = self.process_batch(sentences_to_process)
             self.computed_elmo_map = elmo_map
 
@@ -145,7 +141,7 @@ class ElmoProcessor:
             if candidate in elmo_map:
                 wikilinks_vec = elmo_map[candidate]
             if len(wikilinks_vec) > 0:
-                results[candidate] = ElmoProcessor.cosine(target_vec, wikilinks_vec)
+                results[candidate] = ElmoProcessor.cosine_helper(target_vec, wikilinks_vec)
             else:
                 results[candidate] = 0.0
         sorted_results = sorted(results.items(), key=lambda kv: kv[1], reverse=True)
@@ -227,6 +223,9 @@ class InferenceProcessor:
     # Voting threshold when title is selected via P(title|surface)
     VOTING_THRESHOLD_PRIOR = 0.3
 
+    """
+    It's important to define a @mode as it defines type mappings etc.
+    """
     def __init__(self, mode):
         self.mode = mode
         self.mapping = {}

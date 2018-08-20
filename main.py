@@ -11,8 +11,13 @@ from zoe_utils import InferenceProcessor
 
 class ZoeRunner:
 
-    def __init__(self):
-        self.elmo_processor = ElmoProcessor()
+    """
+    @allow_tensorflow sets whether the system will do run-time ELMo processing.
+                      It's set to False in experiments as ELMo results are cached,
+                      but please set it to default True when running on new sentences.
+    """
+    def __init__(self, allow_tensorflow=True):
+        self.elmo_processor = ElmoProcessor(allow_tensorflow)
         self.esa_processor = EsaProcessor()
         self.inference_processor = InferenceProcessor("figer")
         self.evaluator = Evaluator()
@@ -67,6 +72,6 @@ if __name__ == "__main__":
         print("[ERROR] No running mode given.")
         exit(0)
     if sys.argv[1] == "figer":
-        runner = ZoeRunner()
+        runner = ZoeRunner(allow_tensorflow=False)
         runner.evaluate_dataset("data/FIGER/test_sampled.json", "figer")
-        runner.save("data/log/runlog.pickle")
+        runner.save("data/log/runlog2.pickle")

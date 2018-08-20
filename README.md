@@ -1,4 +1,4 @@
-# ZOE
+# ZOE (Zero-shot Open Typing)
 A state of the art system for zero-shot entity fine typing with minimum supervision
 
 ## Introduction

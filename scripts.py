@@ -2,6 +2,8 @@ import os
 import pickle
 import sys
 
+from zoe_utils import ElmoProcessor
+
 def convert_esa_map(esa_file_name, freq_file_name, invcount_file_name):
     esa_map = {}
     with open(esa_file_name) as f:
@@ -187,6 +189,37 @@ def compare_runlogs(runlog_file_a, runlog_file_b):
                         print("Log B prediction: " + str(compare_sentence.predicted_types))
 
 
+def produce_cache():
+    elmo_processor = ElmoProcessor(allow_tensorflow=True)
+    to_process = []
+    to_process_concepts = []
+    sorted_pairs = sorted(elmo_processor.sent_example_map.items())
+    cur_processing_file_num = ord(sorted_pairs[0][0][0])
+    for pair in sorted_pairs:
+        concept = pair[0]
+        file_num = ord(concept[0])
+        if file_num != cur_processing_file_num:
+            print("Prepared to run ELMo")
+            elmo_map = elmo_processor.process_batch(to_process)
+            batch_map = {}
+            for processed_concept in to_process_concepts:
+                if processed_concept in elmo_map:
+                    batch_map[processed_concept] = elmo_map[processed_concept]
+            with open("data/cache/batch_" + str(cur_processing_file_num) + ".pickle", "wb") as handle:
+                pickle.dump(batch_map, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            print("Processed all concepts start with " + chr(cur_processing_file_num))
+            print("This batch contains " + str(len(to_process_concepts)) + " concepts, and " + str(len(to_process)) + " sentences.")
+            print()
+            to_process = []
+            to_process_concepts = []
+            cur_processing_file_num = file_num
+        example_sentences_str = elmo_processor.sent_example_map[concept]
+        example_sentences = example_sentences_str.split("|||")
+        for i in range(0, min(len(example_sentences), 10)):
+            to_process.append(example_sentences[i])
+        to_process_concepts.append(concept)
+
+
 if __name__ == '__main__':
     if len(sys.argv) < 2:
         print("[ERROR]: No command given.")
@@ -200,3 +233,5 @@ if __name__ == '__main__':
         if len(sys.argv) < 4:
             print("Need two files for comparison.")
         compare_runlogs(sys.argv[2], sys.argv[3])
+    if sys.argv[1] == "CACHE":
+        produce_cache()

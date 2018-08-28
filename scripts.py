@@ -113,6 +113,8 @@ def convert_cached_embeddings(raw_file_name, output_file_name):
         for line in f:
             line = line.strip()
             token = line.split("\t")[0]
+            if line.split("\t")[1] == "null":
+                continue
             vals = line.split("\t")[1].split(",")
             vec = []
             for val in vals:

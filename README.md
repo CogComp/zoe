@@ -23,7 +23,7 @@ We have cached ELMo results for experiments (like figer), and we will further ca
 
 #### Prerequisites
 
-* Minimum 8G available disk space and 16G memory. (Lower specs will not work)
+* Minimum 16G available disk space and 16G memory. (Lower specs will not work)
 * Python 3.X (Mostly tested on 3.5)
 * A POSIX OS (Windows not tested)
 * `virtualenv` if you are installing with script (check if `virtualenv` command works)
@@ -54,7 +54,9 @@ in order to check figer caches etc.
 ### Run the system
 
 Currently you can do the following:
-* Run experiment on FIGER test set (randomly sampled as the paper): `python3 main.py figer` (takes a few minutes with cache)
+* Run experiment on FIGER test set (randomly sampled as the paper): `python3 main.py figer`
+* Run experiment on BBN test set: `python3 main.py bbn`
+* Run experiment on the first 1000 Ontonotes_fine test set instances (due to size issue): `python3 main.py ontontoes`
 
 We will provide experiments on other datasets soon.
 

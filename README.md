@@ -15,7 +15,9 @@ The results may slightly differ from published numbers, due to the randomness in
 HashSet and Python set's iteration order. The difference should be within 0.5%.
 
 A major flaw of this system is the speed of running new sentences, due to ELMo processing.
-We have cached ELMo results for experiments (like figer), and we will further cache more results.
+We have cached ELMo results for the provided experiments to make running experiments possible.
+
+To this end, we are working on an online demo, and we plan to release it before EMNLP 2018.
 
 ## Usage
 
@@ -56,9 +58,7 @@ in order to check figer caches etc.
 Currently you can do the following:
 * Run experiment on FIGER test set (randomly sampled as the paper): `python3 main.py figer`
 * Run experiment on BBN test set: `python3 main.py bbn`
-* Run experiment on the first 1000 Ontonotes_fine test set instances (due to size issue): `python3 main.py ontontoes`
-
-We will provide experiments on other datasets soon.
+* Run experiment on the first 1000 Ontonotes_fine test set instances (due to size issue): `python3 main.py ontonotes`
 
 It's generally an expensive operation to run on new sentences, but you can still do it.
 Please refer to `main.py` to see how you can test on your own data. 

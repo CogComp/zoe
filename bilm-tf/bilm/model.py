@@ -260,9 +260,16 @@ class BidirectionalLanguageModelGraph(object):
         # override the default initializer
         def custom_getter(getter, name, *args, **kwargs):
             kwargs['trainable'] = False
-            kwargs['initializer'] = _pretrained_initializer(
-                name, weight_file, embedding_weight_file
-            )
+            for i in range(0, 3):
+                try:
+                    kwargs['initializer'] = _pretrained_initializer(
+                        name, weight_file, embedding_weight_file
+                    )
+                except:
+                    continue
+                else:
+                    break
+                        
             return getter(name, *args, **kwargs)
 
         if embedding_weight_file is not None:
@@ -329,7 +336,7 @@ class BidirectionalLanguageModelGraph(object):
             activation = tf.nn.relu
 
         # the character embeddings
-        with tf.device("/cpu:0"):
+        with tf.device("/gpu:0"):
             self.embedding_weights = tf.get_variable(
                     "char_embed", [n_chars, char_embed_dim],
                     dtype=DTYPE,
@@ -464,7 +471,7 @@ class BidirectionalLanguageModelGraph(object):
         projection_dim = self.options['lstm']['projection_dim']
 
         # the word embeddings
-        with tf.device("/cpu:0"):
+        with tf.device("/gpu:0"):
             self.embedding_weights = tf.get_variable(
                 "embedding", [self._n_tokens_vocab, projection_dim],
                 dtype=DTYPE,
@@ -655,6 +662,7 @@ def dump_bilm_embeddings(vocab_file, sentences, options_file,
     model = BidirectionalLanguageModel(options_file, weight_file)
     ops = model(ids_placeholder)
     config = tf.ConfigProto(allow_soft_placement=True)
+    config.gpu_options.allow_growth = True
     ret_map = {}
     with tf.Session(config=config) as sess:
         sess.run(tf.global_variables_initializer())

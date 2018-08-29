@@ -1,6 +1,7 @@
 import os
 import pickle
 import sys
+import sqlite3
 
 from zoe_utils import ElmoProcessor
 
@@ -191,13 +192,6 @@ def compare_runlogs(runlog_file_a, runlog_file_b):
                         print("Log B prediction: " + str(compare_sentence.predicted_types))
 
 
-def chunks(chunkable, n):
-    """ Yield successive n-sized chunks from l.
-    """
-    for i in xrange(0, len(chunkable), n):
-        yield chunkable[i:i+n]
-
-
 def produce_cache():
     elmo_processor = ElmoProcessor(allow_tensorflow=True)
     to_process = []
@@ -244,6 +238,24 @@ def produce_cache():
         to_process_concepts.append(concept)
 
 
+def combine_caches():
+    conn = sqlite3.connect('data/elmo_cache.db')
+    cur = conn.cursor()
+    cur.execute("CREATE TABLE data (title VARCHAR(256), value TEXT)")
+    for file_name in os.listdir('data/cache'):
+        with open("data/cache/" + file_name, "rb") as handle:
+            m = pickle.load(handle)
+            for key in m:
+                cur.execute("INSERT INTO data(title, value) VALUES(?, ?)", [key, str(m[key])])
+        conn.commit()
+
+
+def test_caches(title):
+    conn = sqlite3.connect('data/elmo_cache.db')
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM data WHERE title=?", [title])
+    print(cur.fetchone())
+
 if __name__ == '__main__':
     if len(sys.argv) < 2:
         print("[ERROR]: No command given.")
@@ -259,3 +271,7 @@ if __name__ == '__main__':
         compare_runlogs(sys.argv[2], sys.argv[3])
     if sys.argv[1] == "CACHE":
         produce_cache()
+    if sys.argv[1] == "COMBINECACHE":
+        combine_caches()
+    if sys.argv[1] == "TESTCACHE":
+        test_caches(sys.argv[2])

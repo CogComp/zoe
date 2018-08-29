@@ -189,30 +189,52 @@ def compare_runlogs(runlog_file_a, runlog_file_b):
                         print("Log B prediction: " + str(compare_sentence.predicted_types))
 
 
+def chunks(chunkable, n):
+    """ Yield successive n-sized chunks from l.
+    """
+    for i in xrange(0, len(chunkable), n):
+        yield chunkable[i:i+n]
+
+
 def produce_cache():
     elmo_processor = ElmoProcessor(allow_tensorflow=True)
     to_process = []
     to_process_concepts = []
     sorted_pairs = sorted(elmo_processor.sent_example_map.items())
     cur_processing_file_num = ord(sorted_pairs[0][0][0])
+    sub_map_index = 0
+    max_bytes = 2 ** 31 - 1
     for pair in sorted_pairs:
         concept = pair[0]
         file_num = ord(concept[0])
-        if file_num != cur_processing_file_num:
-            print("Prepared to run ELMo")
-            elmo_map = elmo_processor.process_batch(to_process)
-            batch_map = {}
-            for processed_concept in to_process_concepts:
-                if processed_concept in elmo_map:
-                    batch_map[processed_concept] = elmo_map[processed_concept]
-            with open("data/cache/batch_" + str(cur_processing_file_num) + ".pickle", "wb") as handle:
-                pickle.dump(batch_map, handle, protocol=pickle.HIGHEST_PROTOCOL)
-            print("Processed all concepts start with " + chr(cur_processing_file_num))
-            print("This batch contains " + str(len(to_process_concepts)) + " concepts, and " + str(len(to_process)) + " sentences.")
-            print()
+        if file_num != cur_processing_file_num or len(to_process) > 10000:
+            new_start = False
+            if file_num != cur_processing_file_num:
+                new_start = True
+            out_file_name = "data/cache/batch_" + str(cur_processing_file_num) + "_" + str(sub_map_index) + ".pickle"
+            if new_start:
+                out_file_name = "data/cache/batch_" + str(cur_processing_file_num) + ".pickle"
+            if not os.path.isfile(out_file_name) and cur_processing_file_num >= 65:
+                print("Prepared to run ELMo on " + chr(cur_processing_file_num))
+                print("This batch contains " + str(len(to_process_concepts)) + " concepts, and " + str(len(to_process)) + " sentences.")
+                elmo_map = elmo_processor.process_batch(to_process)
+                batch_map = {}
+                for processed_concept in to_process_concepts:
+                    if processed_concept in elmo_map:
+                        batch_map[processed_concept] = elmo_map[processed_concept]
+                bytes_out = pickle.dumps(batch_map, protocol=pickle.HIGHEST_PROTOCOL)
+                with open(out_file_name, "wb") as handle:
+                    for idx in range(0, len(bytes_out), max_bytes):
+                        handle.write(bytes_out[idx:idx + max_bytes])
+                print("Processed all concepts start with " + chr(cur_processing_file_num))
+                print()
             to_process = []
             to_process_concepts = []
-            cur_processing_file_num = file_num
+            if new_start:
+                cur_processing_file_num = file_num
+                sub_map_index = 0
+            else:
+                sub_map_index += 1
         example_sentences_str = elmo_processor.sent_example_map[concept]
         example_sentences = example_sentences_str.split("|||")
         for i in range(0, min(len(example_sentences), 10)):

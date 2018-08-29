@@ -313,7 +313,7 @@ class InferenceProcessor:
         if " " in title:
             title = title.replace(" ", "_")
         if regex.match(r'\d{4}', title):
-            return set()
+            self.freebase_map[title] = ""
         if title.lower() == title:
             concat = ""
             for token in title.split("_"):

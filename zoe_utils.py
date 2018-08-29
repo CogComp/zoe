@@ -326,9 +326,9 @@ class InferenceProcessor:
             if len(concat) > 0:
                 concat = concat[:-1]
             title = concat
-        if title not in self.freebase_map:
-            return set()
-        freebase_types = self.freebase_map[title].split(",")
+        freebase_types = []
+        if title in self.freebase_map:
+            freebase_types = self.freebase_map[title].split(",")
         mapped_set = set()
         for t in freebase_types:
             converted_type = "/" + t.replace(".", "/")
@@ -500,7 +500,7 @@ class InferenceProcessor:
         selected_types.add(coarse_type)
         for t in consider_types:
             if t in freq_map:
-                if float(freq_map[t]) > float(total) * voting_threshold:
+                if float(freq_map[t]) > float(total) * voting_threshold and freq_map[t] > 1:
                     selected_types.add(t)
 
         to_be_removed_types = set()

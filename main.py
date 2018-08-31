@@ -97,5 +97,3 @@ if __name__ == "__main__":
         runner.save("data/log/runlog_ontonotes.pickle")
     if sys.argv[1] == "eval" and len(sys.argv) > 2:
         ZoeRunner.evaluate_saved_runlog(sys.argv[2])
-
-

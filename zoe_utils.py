@@ -8,7 +8,7 @@ import numpy as np
 import regex
 import tensorflow as tf
 
-from bilm import dump_bilm_embeddings_inner, dump_bilm_embeddings, initialize_sess
+from bilm import dump_bilm_embeddings, dump_bilm_embeddings_inner, initialize_sess
 from scipy.spatial.distance import cosine
 
 
@@ -17,10 +17,10 @@ class ElmoProcessor:
     RANKED_RETURN_NUM = 20
 
     def __init__(self, allow_tensorflow):
-        self.datadir = os.path.join('bilm-tf', 'model', 'copied')
+        self.datadir = os.path.join('bilm-tf', 'model')
         self.vocab_file = os.path.join(self.datadir, 'vocab_test.txt')
         self.options_file = os.path.join(self.datadir, 'elmo_2x4096_512_2048cnn_2xhighway_options.json')
-        self.weight_file = os.path.join(self.datadir, 'elmo_2x4096_512_2048cnn_2xhighway_5.5B_weights.hdf5')
+        self.weight_file = os.path.join(self.datadir, 'elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5')
         with open('data/sent_example.pickle', 'rb') as handle:
             self.sent_example_map = pickle.load(handle)
         self.target_embedding_map = {}

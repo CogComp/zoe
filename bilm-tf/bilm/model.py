@@ -701,3 +701,19 @@ def dump_bilm_embeddings_inner(vocab_file, line, options_file,
         )
         return embeddings[0]
 
+
+def initialize_sess(vocab_file, options_file, weight_file):
+    with open(options_file, 'r') as fin:
+        options = json.load(fin)
+    max_word_length = options['char_cnn']['max_characters_per_token']
+    batcher = Batcher(vocab_file, max_word_length)
+    ids_placeholder = tf.placeholder('int32',
+                                     shape=(None, None, max_word_length)
+                                     )
+    model = BidirectionalLanguageModel(options_file, weight_file)
+    ops = model(ids_placeholder)
+    config = tf.ConfigProto(allow_soft_placement=True)
+    config.gpu_options.allow_growth = True
+    sess = tf.Session(config=config)
+    sess.run(tf.global_variables_initializer())
+    return batcher, ids_placeholder, ops, sess

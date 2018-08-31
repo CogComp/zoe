@@ -2,12 +2,13 @@ import json
 import math
 import os
 import pickle
+import sqlite3
 
 import numpy as np
 import regex
 import tensorflow as tf
 
-from bilm import dump_bilm_embeddings_inner, dump_bilm_embeddings
+from bilm import dump_bilm_embeddings, dump_bilm_embeddings_inner, initialize_sess
 from scipy.spatial.distance import cosine
 
 
@@ -18,23 +19,84 @@ class ElmoProcessor:
     def __init__(self, allow_tensorflow):
         self.datadir = os.path.join('bilm-tf', 'model')
         self.vocab_file = os.path.join(self.datadir, 'vocab_test.txt')
-        self.options_file = os.path.join(self.datadir, 'options.json')
-        self.weight_file = os.path.join(self.datadir, 'elmo_2x4096_512_2048cnn_2xhighway_5.5B_weights.hdf5')
+        self.options_file = os.path.join(self.datadir, 'elmo_2x4096_512_2048cnn_2xhighway_options.json')
+        self.weight_file = os.path.join(self.datadir, 'elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5')
         with open('data/sent_example.pickle', 'rb') as handle:
             self.sent_example_map = pickle.load(handle)
         self.target_embedding_map = {}
         self.wikilinks_embedding_map = {}
         self.target_output_embedding_map = {}
         self.wikilinks_output_embedding_map = {}
-        self.computed_elmo_map = {}
         self.allow_tensorflow = allow_tensorflow
         self.stop_sign = "STOP_SIGN_SIGNAL"
+        self.batcher, self.ids_placeholder, self.ops, self.sess = initialize_sess(self.vocab_file, self.options_file, self.weight_file)
+        self.db_loaded = False
+
+    def load_sqlite_db(self, path):
+        self.db_conn = sqlite3.connect(path)
+        self.db_loaded = True
+
+    def query_sqlite_db(self, candidates):
+        if not self.db_loaded:
+            return {}
+        cursor = self.db_conn.cursor()
+        ret_map = {}
+        for candidate in candidates:
+            cursor.execute("SELECT value FROM data WHERE title=?", [candidate])
+            result = cursor.fetchone()
+            if result is not None:
+                result_str = result[0]
+                assert(result_str[0] == '[')
+                assert(result_str[-1] == ']')
+                result_str = result_str[1:-1]
+                result_arr = [float(x) for x in result_str.split(",")]
+                ret_map[candidate] = result_arr
+        return ret_map
+
+    def process_batch_continuous(self, sentences):
+        tokenized_context = [sentence.strip().split() for sentence in sentences]
+        freq_map = {}
+
+        for i in range(0, len(tokenized_context)):
+            for j in range(0, len(tokenized_context[i])):
+                key = tokenized_context[i][j]
+                if key in freq_map:
+                    freq_map[key] = freq_map[key] + 1.0
+                else:
+                    freq_map[key] = 1.0
+
+        ret_map = {}
+        for sent_id in range(0, len(sentences)):
+            sentence = ' '.join(tokenized_context[sent_id])
+            tokens = sentence.strip().split()
+            char_ids = self.batcher.batch_sentences([tokens])
+            sent_embedding = self.sess.run(
+                self.ops['lm_embeddings'], feed_dict={self.ids_placeholder: char_ids}
+            )[0]
+            for i in range(0, len(tokenized_context[sent_id])):
+                key = tokenized_context[sent_id][i]
+                concat = np.concatenate([
+                    sent_embedding[0][i],
+                    sent_embedding[1][i],
+                    sent_embedding[2][i]
+                ])
+                if key in ret_map:
+                    ret_map[key] = ret_map[key] + concat
+                else:
+                    ret_map[key] = concat
+                assert(len(ret_map[key]) == 3 * 1024)
+        ret_map_avg = {}
+        for key in ret_map:
+            dividend = freq_map[key]
+            ret_map_avg[key] = list(ret_map[key] / dividend)
+        tf.reset_default_graph()
+        return ret_map_avg
 
     """
     @sentences: A list of string
     """
     def process_batch(self, sentences):
-        tokenized_context = [sentence.split() for sentence in sentences]
+        tokenized_context = [sentence.strip().split() for sentence in sentences]
         freq_map = {}
 
         for i in range(0, len(tokenized_context)):
@@ -70,6 +132,18 @@ class ElmoProcessor:
             ret_map_avg[key] = list(ret_map[key] / dividend)
         tf.reset_default_graph()
         return ret_map_avg
+
+    def process_single_continuous(self, sentence):
+        tokens = sentence.strip().split()
+        char_ids = self.batcher.batch_sentences([tokens])
+        embedding = self.sess.run(
+            self.ops['lm_embeddings'], feed_dict={self.ids_placeholder: char_ids}
+        )[0]
+        ret_map = {}
+        for i in range(0, len(tokens)):
+            ret_map[tokens[i]] = list(embedding[0][i]) + list(embedding[1][i]) + list(embedding[2][i])
+            assert(len(ret_map[tokens[i]]) == 3 * 1024)
+        return ret_map
 
     """
     @sentences: A string
@@ -113,40 +187,42 @@ class ElmoProcessor:
     @return: A list of (string, float) pair of title to ELMo scores
     """
     def rank_candidates(self, sentence, candidates):
-        sentences_to_process = []
         candidates = [x[0] for x in candidates]
-        if sentence.get_mention_surface() not in self.target_embedding_map:
-            sentences_to_process.append(sentence.get_sent_str())
+        target_vec = []
+        if sentence.get_mention_surface() not in self.target_embedding_map and self.allow_tensorflow:
+            target_additional_map = self.process_single_continuous(sentence.get_sent_str())
+            if sentence.get_mention_surface() in target_additional_map:
+                target_vec = target_additional_map[sentence.get_mention_surface()]
+        if sentence.get_mention_surface() in self.target_embedding_map:
+            target_vec = self.target_embedding_map[sentence.get_mention_surface()]
+        sentences_to_process = []
+        if self.db_loaded:
+            wikilinks_embedding_map = self.query_sqlite_db(candidates)
+        else:
+            wikilinks_embedding_map = self.wikilinks_embedding_map
         for candidate in candidates:
             if candidate not in self.sent_example_map:
                 continue
-            # skip if cached
-            if candidate in self.wikilinks_embedding_map:
+            if candidate in wikilinks_embedding_map:
                 continue
             example_sentences_str = self.sent_example_map[candidate]
             example_sentences = example_sentences_str.split("|||")
             for i in range(0, min(len(example_sentences), 10)):
                 sentences_to_process.append(example_sentences[i])
-        elmo_map = {}
+        wikilinks_additional_map = {}
         if len(sentences_to_process) > 0 and self.allow_tensorflow:
-            elmo_map = self.process_batch(sentences_to_process)
-            self.computed_elmo_map = elmo_map
+            wikilinks_additional_map = self.process_batch_continuous(sentences_to_process)
 
-        target_vec = []
-        if sentence.get_mention_surface() in self.target_embedding_map:
-            target_vec = self.target_embedding_map[sentence.get_mention_surface()]
-        if sentence.get_mention_surface() in elmo_map:
-            target_vec = elmo_map[sentence.get_mention_surface()]
         if len(target_vec) == 0:
             return [(self.stop_sign, 0.0)]
         self.target_output_embedding_map[sentence.get_mention_surface()] = target_vec
         results = {}
         for candidate in candidates:
             wikilinks_vec = []
-            if candidate in self.wikilinks_embedding_map:
-                wikilinks_vec = self.wikilinks_embedding_map[candidate]
-            if candidate in elmo_map:
-                wikilinks_vec = elmo_map[candidate]
+            if candidate in wikilinks_embedding_map:
+                wikilinks_vec = wikilinks_embedding_map[candidate]
+            if candidate in wikilinks_additional_map:
+                wikilinks_vec = wikilinks_additional_map[candidate]
             self.wikilinks_output_embedding_map[candidate] = wikilinks_vec
             if len(wikilinks_vec) > 0:
                 results[candidate] = ElmoProcessor.cosine_helper(target_vec, wikilinks_vec)
@@ -154,7 +230,6 @@ class ElmoProcessor:
                 results[candidate] = 0.0
         sorted_results = sorted(results.items(), key=lambda kv: kv[1], reverse=True)
         return [(x[0], x[1]) for x in sorted_results][:self.RANKED_RETURN_NUM]
-
 
     """
     To save the cache maps generated by the processor instance 

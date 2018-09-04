@@ -3,3 +3,5 @@ tensorflow
 numpy
 scipy
 regex
+Flask
+flask-cors

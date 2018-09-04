@@ -10,6 +10,7 @@ import tensorflow as tf
 
 from bilm import dump_bilm_embeddings, dump_bilm_embeddings_inner, initialize_sess
 from scipy.spatial.distance import cosine
+from flask import g
 
 
 class ElmoProcessor:
@@ -31,15 +32,24 @@ class ElmoProcessor:
         self.stop_sign = "STOP_SIGN_SIGNAL"
         self.batcher, self.ids_placeholder, self.ops, self.sess = initialize_sess(self.vocab_file, self.options_file, self.weight_file)
         self.db_loaded = False
+        self.server_mode = False
 
-    def load_sqlite_db(self, path):
+    def load_sqlite_db(self, path, server_mode=False):
         self.db_conn = sqlite3.connect(path)
+        self.db_path = path
+        self.server_mode = server_mode
         self.db_loaded = True
 
     def query_sqlite_db(self, candidates):
         if not self.db_loaded:
             return {}
-        cursor = self.db_conn.cursor()
+        if self.server_mode:
+            db = getattr(g, '_database', None)
+            if db is None:
+                db = g._database = sqlite3.connect(self.db_path)
+            cursor = db.cursor()
+        else:
+            cursor = self.db_conn.cursor()
         ret_map = {}
         for candidate in candidates:
             cursor.execute("SELECT value FROM data WHERE title=?", [candidate])

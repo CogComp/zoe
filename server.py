@@ -32,10 +32,12 @@ class Server:
         r = request.get_json()
         if "tokens" not in r or "mention_start" not in r or "mention_end" not in r:
             ret["type"] = ["INVALID_INPUT"]
+            ret["candidates"] = []
             return json.dumps(ret)
         sentence = Sentence(r["tokens"], r["mention_start"], r["mention_end"], "")
         self.runner.process_sentence(sentence)
         ret["type"] = list(sentence.predicted_types)
+        ret["candidates"] = sentence.elmo_candidate_titles
         return json.dumps(ret)
 
     """

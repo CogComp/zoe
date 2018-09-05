@@ -36,6 +36,7 @@ class Server:
             return json.dumps(ret)
         sentence = Sentence(r["tokens"], r["mention_start"], r["mention_end"], "")
         self.runner.process_sentence(sentence)
+        print("Processed mention " + sentence.get_mention_surface())
         ret["type"] = list(sentence.predicted_types)
         ret["candidates"] = sentence.elmo_candidate_titles
         return json.dumps(ret)

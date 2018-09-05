@@ -76,14 +76,50 @@
         }
 
         function processButton() {
-            var idx = Number(this.id.split("-")[1]);
+            if (this.classList.contains("btn-outline-primary")) {
+                processButtonSelect(this);
+            } else {
+                processButtonUnselect(this);
+            }
+        }
+
+        function processButtonUnselect(but) {
+            var idx = Number(but.id.split("-")[1]);
+            var cur_mention_start = Number(document.getElementById("cur-mention-start").innerText);
+            var cur_mention_end = Number(document.getElementById("cur-mention-end").innerText);
+            if (cur_mention_start == idx && cur_mention_end == idx + 1) {
+                // In this case, only one left.
+                document.getElementById("cur-mention-start").innerText = String(-1);
+                document.getElementById("cur-mention-end").innerText = String(-1);
+                but.classList.remove("btn-primary");
+                but.classList.add("btn-outline-primary");
+            }
+            else {
+                if (cur_mention_start == idx) {
+                    document.getElementById("cur-mention-start").innerText = String(idx + 1);
+                    but.classList.remove("btn-primary");
+                    but.classList.add("btn-outline-primary");
+                }
+                else if (cur_mention_end - 1 == idx) {
+                    document.getElementById("cur-mention-end").innerText = String(idx);
+                    but.classList.remove("btn-primary");
+                    but.classList.add("btn-outline-primary");
+                }
+                else {
+                    alert("You must unselect out-most tokens first.");
+                }
+            }
+        }
+
+        function processButtonSelect(but) {
+            var idx = Number(but.id.split("-")[1]);
             var cur_mention_start = Number(document.getElementById("cur-mention-start").innerText);
             var cur_mention_end = Number(document.getElementById("cur-mention-end").innerText);
             if (cur_mention_start == -1) {
-                document.getElementById("cur-mention-start").innerText = idx;
-                document.getElementById("cur-mention-end").innerText = idx + 1;
-                this.classList.remove("btn-outline-primary");
-                this.classList.add("btn-primary");
+                document.getElementById("cur-mention-start").innerText = String(idx);
+                document.getElementById("cur-mention-end").innerText = String(idx + 1);
+                but.classList.remove("btn-outline-primary");
+                but.classList.add("btn-primary");
             }
             else {
                 if (idx < cur_mention_start - 1 || idx > cur_mention_end) {
@@ -92,13 +128,13 @@
                 }
                 else {
                     if (idx < cur_mention_start) {
-                        document.getElementById("cur-mention-start").innerText = idx;
+                        document.getElementById("cur-mention-start").innerText = String(idx);
                     }
                     if (idx + 1 > cur_mention_end) {
-                        document.getElementById("cur-mention-end").innerText = idx + 1;
+                        document.getElementById("cur-mention-end").innerText = String(idx + 1);
                     }
-                    this.classList.remove("btn-outline-primary");
-                    this.classList.add("btn-primary");
+                    but.classList.remove("btn-outline-primary");
+                    but.classList.add("btn-primary");
                 }
             }
         }
@@ -143,6 +179,9 @@
                 mention_end: cur_mention_end,
             });
             xhr.send(data);
+            document.getElementById("prediction-display").innerHTML =
+                "<div class=\"alert alert-info\" role=\"alert\"><span class=\"glyphicon glyphicon-transfer\"></span>Zoe is processing your request...</div>"
+            document.getElementById("candidate-display").innerHTML = "";
         }
 
     </script>

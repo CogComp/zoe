@@ -3,6 +3,7 @@ from main import ZoeRunner
 from zoe_utils import Sentence
 from flask import Flask
 from flask import request
+from flask import send_from_directory
 from flask_cors import CORS
 
 
@@ -20,7 +21,7 @@ class Server:
 
     @staticmethod
     def handle_root():
-        return "Welcome to the demo"
+        return send_from_directory('./frontend', 'index.html')
 
     """
     Main request handler

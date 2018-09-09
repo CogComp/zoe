@@ -333,17 +333,19 @@ class InferenceProcessor:
     It's important to define a @mode as it defines type mappings etc.
     """
     def __init__(self, mode, do_inference=True, use_prior=True, use_context=True, resource_loader=None, custom_mapping=None):
-        #TODO: process custom mappings
         self.mode = mode
         self.mapping = {}
         self.do_inference = do_inference
         self.use_prior = use_prior
         self.use_context = use_context
-        mapping_file_name = "mapping/" + self.mode + ".mapping"
-        with open(mapping_file_name) as f:
-            for line in f:
-                line = line.strip()
-                self.mapping[line.split("\t")[0]] = line.split("\t")[1]
+        if custom_mapping is None:
+            mapping_file_name = "mapping/" + self.mode + ".mapping"
+            with open(mapping_file_name) as f:
+                for line in f:
+                    line = line.strip()
+                    self.mapping[line.split("\t")[0]] = line.split("\t")[1]
+        else:
+            self.mapping = custom_mapping
         if resource_loader is None:
             with open("data/prior_prob.pickle", "rb") as handle:
                 self.prior_prob_map = pickle.load(handle)
@@ -353,11 +355,12 @@ class InferenceProcessor:
             self.prior_prob_map = resource_loader.prior_prob_map
             self.freebase_map = resource_loader.freebase_map
         self.logic_mappings = []
-        logic_mapping_file_name = "mapping/" + self.mode + ".logic.mapping"
-        with open(logic_mapping_file_name) as f:
-            for line in f:
-                line = line.strip()
-                self.logic_mappings.append(line)
+        if custom_mapping is None:
+            logic_mapping_file_name = "mapping/" + self.mode + ".logic.mapping"
+            with open(logic_mapping_file_name) as f:
+                for line in f:
+                    line = line.strip()
+                    self.logic_mappings.append(line)
 
     """
     Process logic mappings (i.e. additional target_taxonomy to target_taxonomy mappings)

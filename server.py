@@ -28,6 +28,44 @@ class Server:
     def handle_redirection():
         return Server.handle_root("index.html")
 
+    def parse_custom_rules(self, rules):
+        type_to_titles = {}
+        freebase_freq_total = {}
+        for rule in rules:
+            title = rule.split("|||")[0]
+            freebase_types = []
+            if title in self.runner.inference_processor.freebase_map:
+                freebase_types = self.runner.inference_processor.freebase_map[title].split(",")
+            for ft in freebase_types:
+                if ft in freebase_freq_total:
+                    freebase_freq_total[ft] += 1
+                else:
+                    freebase_freq_total[ft] = 1
+            custom_type = rule.split("|||")[1]
+            if custom_type in type_to_titles:
+                type_to_titles[custom_type].append(title)
+            else:
+                type_to_titles[custom_type] = [title]
+        counter = 0
+        ret = {}
+        for custom_type in type_to_titles:
+            freebase_freq = {}
+            for title in type_to_titles[custom_type]:
+                freebase_types = []
+                if title in self.runner.inference_processor.freebase_map:
+                    freebase_types = self.runner.inference_processor.freebase_map[title].split(",")
+                    counter += 1
+                for freebase_type in freebase_types:
+                    if freebase_type in freebase_freq:
+                        freebase_freq[freebase_type] += 1
+                    else:
+                        freebase_freq[freebase_type] = 1
+            for ft in freebase_freq:
+                if float(freebase_freq[ft]) > float(counter) * 0.5 and freebase_freq[ft] == freebase_freq_total[ft]:
+                    ft = "/" + ft.replace(".", "/")
+                    ret[ft] = custom_type
+        return ret
+
     """
     Main request handler
     It requires the request to contain required information like tokens/mentions
@@ -48,7 +86,9 @@ class Server:
                 self.runner.process_sentence(sentence, selected_inference_processor)
             else:
                 rules = r["taxonomy"]
-                #TODO: parse custom rules
+                mappings = self.parse_custom_rules(rules)
+                custom_inference_processor = InferenceProcessor(mode, custom_mapping=mappings)
+                self.runner.process_sentence(sentence, custom_inference_processor)
         else:
             self.runner.process_sentence(sentence)
         print("Processed mention " + sentence.get_mention_surface() + " in mode " + mode)

@@ -332,7 +332,8 @@ class InferenceProcessor:
     """
     It's important to define a @mode as it defines type mappings etc.
     """
-    def __init__(self, mode, do_inference=True, use_prior=True, use_context=True):
+    def __init__(self, mode, do_inference=True, use_prior=True, use_context=True, resource_loader=None, custom_mapping=None):
+        #TODO: process custom mappings
         self.mode = mode
         self.mapping = {}
         self.do_inference = do_inference
@@ -343,10 +344,14 @@ class InferenceProcessor:
             for line in f:
                 line = line.strip()
                 self.mapping[line.split("\t")[0]] = line.split("\t")[1]
-        with open("data/prior_prob.pickle", "rb") as handle:
-            self.prior_prob_map = pickle.load(handle)
-        with open("data/title2freebase.pickle", "rb") as handle:
-            self.freebase_map = pickle.load(handle)
+        if resource_loader is None:
+            with open("data/prior_prob.pickle", "rb") as handle:
+                self.prior_prob_map = pickle.load(handle)
+            with open("data/title2freebase.pickle", "rb") as handle:
+                self.freebase_map = pickle.load(handle)
+        else:
+            self.prior_prob_map = resource_loader.prior_prob_map
+            self.freebase_map = resource_loader.freebase_map
         self.logic_mappings = []
         logic_mapping_file_name = "mapping/" + self.mode + ".logic.mapping"
         with open(logic_mapping_file_name) as f:

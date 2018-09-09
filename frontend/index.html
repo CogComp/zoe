@@ -1,189 +1,369 @@
 <!doctype html>
 <html lang="en">
-  <head>
+<head>
     <!-- Required meta tags -->
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
     <!-- Bootstrap CSS -->
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css"
+          integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.3.1/css/all.css" integrity="sha384-mzrmE5qonljUremFsqc01SB46JvROS7bZs3IO2EmfFsd15uHvIt+Y8vEf7N7fWAU" crossorigin="anonymous">
+
+
 
     <title>Zoe Online Demo</title>
-  </head>
-  <body>
-    <h1>Zoe Online Demo (Beta)</h1>
+</head>
+<body>
+<!-- Nav bar section -->
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <a class="navbar-brand" href="#">
+        <img src="http://cogcomp.org/images/logo.png" width="30"/>
+        Zoe Online Demo
+    </a>
+    <div class="collapse navbar-collapse" id="navbarNavDropdown">
+        <ul class="navbar-nav">
+            <li class="nav-item active">
+                <a class="nav-link" href="#">About</a>
+            </li>
+        </ul>
+    </div>
+</nav>
 
-    <div class="container">
-        <div class="row mt-3">
-            <div class="input-group">
-                <div class="input-group-prepend">
-                    <span class="input-group-text">Sentence</span>
+<!-- Main container -->
+<div class="container">
+    <div class="row">
+        <!-- Left panel -->
+        <div class="col col-6">
+            <div class="row mt-3">
+                <div class="input-group">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text">Sentence</span>
+                    </div>
+                    <input type="text" class="form-control" id="sentence-input">
+                    <div class="input-group-append">
+                        <button class="btn btn-outline-secondary" type="button" onclick="generateTokens()">Parse!
+                        </button>
+                    </div>
                 </div>
-                <input type="text" class="form-control" id="sentence-input">
-                <div class="input-group-append">
-                    <button class="btn btn-outline-secondary" type="button" onclick="generateTokens()">Parse!</button>
-                </div>
+            </div>
+
+            <div class="row mt-3">
+                <div class="col-sm-10" id="token-display"></div>
+                <div class="col-sm-2" id="annotate-button"></div>
+            </div>
+
+            <div class="row mt-3">
+                <div id="prediction-display"></div>
+                <div id="candidate-display"></div>
+            </div>
+
+            <!-- Info section for parameter storage -->
+            <div>
+                <span id="cur-mention-start" style="display: none">-1</span>
+                <span id="cur-mention-end" style="display: none">-1</span>
             </div>
         </div>
 
-        <div class="row mt-3">
-            <div class="col-sm-10" id="token-display"></div>
-            <div class="col-sm-2" id="annotate-button"></div>
-        </div>
-
-        <div class="row mt-3">
-            <div id="prediction-display"></div>
-            <div id="candidate-display"></div>
-        </div>
-
-        <!-- Info section for parameter storage -->
-        <div>
-            <span id="cur-mention-start" style="display: none">-1</span>
-            <span id="cur-mention-end" style="display: none">-1</span>
+        <!-- Right panel -->
+        <div class="col col-6">
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="taxonomy" id="preset-taxonomy-select" value="preset_taxonomy"
+                       checked>
+                <label class="form-check-label" for="preset-taxonomy-select">
+                    Preset Taxonomy
+                </label>
+                <select class="form-control" id="preset-taxonomy-select-value">
+                    <option>figer</option>
+                    <option>bbn</option>
+                    <option>ontonotes</option>
+                </select>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="taxonomy" id="custom-taxonomy-select" value="custom_taxonomy">
+                <label class="form-check-label" for="custom-taxonomy-select">
+                    Define Your Own
+                </label>
+            </div>
+            <div id="custom-taxonomy-rule-input" style="display: none">
+            </div>
+            <div id="custom-taxonomy-rule-input-example" style="display:none">
+                <div class="form-row align-items-center">
+                    <div class="col-6">
+                        <input type="text" class="form-control mb-2" id="wikipage-input" placeholder="Wikipedia Page Link">
+                    </div>
+                    <div class="col-3">
+                        <div class="input-group mb-2">
+                            <input type="text" class="form-control" id="type-input" placeholder="Type">
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <button type="submit" class="btn btn-primary mb-2" onclick="generateFormRow();">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
+</div>
 
-    <!-- Optional JavaScript -->
-    <!-- jQuery first, then Popper.js, then Bootstrap JS -->
-    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy" crossorigin="anonymous"></script>
-    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
-    <script>
-        function generateTokens() {
-            document.getElementById("token-display").innerHTML = "";
+<!-- Optional JavaScript -->
+<!-- jQuery first, then Popper.js, then Bootstrap JS -->
+<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"
+        integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo"
+        crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js"
+        integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49"
+        crossorigin="anonymous"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js"
+        integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy"
+        crossorigin="anonymous"></script>
+<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+<script src="./constants/constants.js"></script>
+<script>
+    function generateTokens() {
+        document.getElementById("token-display").innerHTML = "";
+        document.getElementById("cur-mention-start").innerText = String(-1);
+        document.getElementById("cur-mention-end").innerText = String(-1);
+        var sentence = document.getElementById("sentence-input").value;
+        if (sentence.length == 0) {
+            alert("You must enter a sentence to proceed.");
+            return;
+        }
+        var tokens = sentence.trim().split(" ");
+        for (var i = 0; i < tokens.length; i++) {
+            var curToken = tokens[i];
+            document.getElementById("token-display").innerHTML +=
+                "<button type=\"button\" class=\"btn btn-outline-primary\" id=\"token-"
+                + i
+                + "\" onclick=\"processButton()\">"
+                + curToken
+                + "</button>"
+        }
+        for (var j = 0; j < tokens.length; j++) {
+            var button = document.getElementById("token-" + j);
+            button.onclick = processButton;
+        }
+        document.getElementById("annotate-button").innerHTML =
+            "<button type=\"button\" class=\"btn btn-success\" id=\"annotate-button-actual\">Annotate</button>";
+        var annotate_button = document.getElementById("annotate-button-actual");
+        annotate_button.onclick = generateAnnotation;
+    }
+
+    function processButton() {
+        if (this.classList.contains("btn-outline-primary")) {
+            processButtonSelect(this);
+        } else {
+            processButtonUnselect(this);
+        }
+    }
+
+    function processButtonUnselect(but) {
+        var idx = Number(but.id.split("-")[1]);
+        var cur_mention_start = Number(document.getElementById("cur-mention-start").innerText);
+        var cur_mention_end = Number(document.getElementById("cur-mention-end").innerText);
+        if (cur_mention_start == idx && cur_mention_end == idx + 1) {
+            // In this case, only one left.
             document.getElementById("cur-mention-start").innerText = String(-1);
             document.getElementById("cur-mention-end").innerText = String(-1);
-            var sentence = document.getElementById("sentence-input").value;
-            var tokens = sentence.trim().split(" ");
-            for (var i = 0; i < tokens.length; i++) {
-                var curToken = tokens[i];
-                document.getElementById("token-display").innerHTML +=
-                    "<button type=\"button\" class=\"btn btn-outline-primary\" id=\"token-"
-                    + i
-                    + "\" onclick=\"processButton()\">"
-                    + curToken
-                    + "</button>"
-            }
-            for (var j = 0; j < tokens.length; j++) {
-                var button = document.getElementById("token-" + j);
-                button.onclick = processButton;
-            }
-            document.getElementById("annotate-button").innerHTML =
-                "<button type=\"button\" class=\"btn btn-success\" id=\"annotate-button-actual\">Annotate</button>";
-            var annotate_button = document.getElementById("annotate-button-actual");
-            annotate_button.onclick = generateAnnotation;
+            but.classList.remove("btn-primary");
+            but.classList.add("btn-outline-primary");
         }
-
-        function processButton() {
-            if (this.classList.contains("btn-outline-primary")) {
-                processButtonSelect(this);
-            } else {
-                processButtonUnselect(this);
+        else {
+            if (cur_mention_start == idx) {
+                document.getElementById("cur-mention-start").innerText = String(idx + 1);
+                but.classList.remove("btn-primary");
+                but.classList.add("btn-outline-primary");
             }
-        }
-
-        function processButtonUnselect(but) {
-            var idx = Number(but.id.split("-")[1]);
-            var cur_mention_start = Number(document.getElementById("cur-mention-start").innerText);
-            var cur_mention_end = Number(document.getElementById("cur-mention-end").innerText);
-            if (cur_mention_start == idx && cur_mention_end == idx + 1) {
-                // In this case, only one left.
-                document.getElementById("cur-mention-start").innerText = String(-1);
-                document.getElementById("cur-mention-end").innerText = String(-1);
+            else if (cur_mention_end - 1 == idx) {
+                document.getElementById("cur-mention-end").innerText = String(idx);
                 but.classList.remove("btn-primary");
                 but.classList.add("btn-outline-primary");
             }
             else {
-                if (cur_mention_start == idx) {
-                    document.getElementById("cur-mention-start").innerText = String(idx + 1);
-                    but.classList.remove("btn-primary");
-                    but.classList.add("btn-outline-primary");
-                }
-                else if (cur_mention_end - 1 == idx) {
-                    document.getElementById("cur-mention-end").innerText = String(idx);
-                    but.classList.remove("btn-primary");
-                    but.classList.add("btn-outline-primary");
-                }
-                else {
-                    alert("You must unselect out-most tokens first.");
-                }
+                alert("You must unselect out-most tokens first.");
             }
         }
+    }
 
-        function processButtonSelect(but) {
-            var idx = Number(but.id.split("-")[1]);
-            var cur_mention_start = Number(document.getElementById("cur-mention-start").innerText);
-            var cur_mention_end = Number(document.getElementById("cur-mention-end").innerText);
-            if (cur_mention_start == -1) {
-                document.getElementById("cur-mention-start").innerText = String(idx);
-                document.getElementById("cur-mention-end").innerText = String(idx + 1);
+    function processButtonSelect(but) {
+        var idx = Number(but.id.split("-")[1]);
+        var cur_mention_start = Number(document.getElementById("cur-mention-start").innerText);
+        var cur_mention_end = Number(document.getElementById("cur-mention-end").innerText);
+        if (cur_mention_start == -1) {
+            document.getElementById("cur-mention-start").innerText = String(idx);
+            document.getElementById("cur-mention-end").innerText = String(idx + 1);
+            but.classList.remove("btn-outline-primary");
+            but.classList.add("btn-primary");
+        }
+        else {
+            if (idx < cur_mention_start - 1 || idx > cur_mention_end) {
+                // Cannot do such selection. Alert and do nothing.
+                alert("You must select consecutive tokens.")
+            }
+            else {
+                if (idx < cur_mention_start) {
+                    document.getElementById("cur-mention-start").innerText = String(idx);
+                }
+                if (idx + 1 > cur_mention_end) {
+                    document.getElementById("cur-mention-end").innerText = String(idx + 1);
+                }
                 but.classList.remove("btn-outline-primary");
                 but.classList.add("btn-primary");
             }
-            else {
-                if (idx < cur_mention_start - 1 || idx > cur_mention_end) {
-                    // Cannot do such selection. Alert and do nothing.
-                    alert("You must select consecutive tokens.")
-                }
-                else {
-                    if (idx < cur_mention_start) {
-                        document.getElementById("cur-mention-start").innerText = String(idx);
-                    }
-                    if (idx + 1 > cur_mention_end) {
-                        document.getElementById("cur-mention-end").innerText = String(idx + 1);
-                    }
-                    but.classList.remove("btn-outline-primary");
-                    but.classList.add("btn-primary");
-                }
-            }
         }
+    }
 
-        function updateResult(result) {
-            var predictions = result['type'];
-            var candidates = result['candidates'];
-            document.getElementById("prediction-display").innerHTML =
-                "<div class=\"alert alert-success\" role=\"alert\">" +
-                "Zoe believes this mention belongs to " + String(predictions) +
-                "</div>";
-            var cand_display_prefix =
-                "<div class=\"alert alert-success mt-1\" role=\"alert\">" +
-                 "Some concepts used for inference: ";
-            var cand_str = "";
-            for (var i = 0; i < candidates.length; i++) {
-                var candidate = candidates[i];
-                cand_str += "<a target=\"_blank\" href=\"http://en.wikipedia.org/wiki/" + candidate +
-                    "\"><span class=\"badge badge-primary mt-1\">" + candidate + "</span></a>";
-            }
-            document.getElementById("candidate-display").innerHTML =
-                cand_display_prefix + cand_str + "</div>";
+    function updateResult(result) {
+        var predictions = result['type'];
+        var candidates = result['candidates'];
+        document.getElementById("prediction-display").innerHTML =
+            "<div class=\"alert alert-success\" role=\"alert\">" +
+            "Zoe believes this mention belongs to " + String(predictions) +
+            "</div>";
+        var cand_display_prefix =
+            "<div class=\"alert alert-success mt-1\" role=\"alert\">" +
+            "Some concepts used for inference: ";
+        var cand_str = "";
+        for (var i = 0; i < candidates.length; i++) {
+            var candidate = candidates[i];
+            cand_str += "<a target=\"_blank\" href=\"http://en.wikipedia.org/wiki/" + candidate +
+                "\"><span class=\"badge badge-primary mt-1\">" + candidate + "</span></a>";
         }
+        document.getElementById("candidate-display").innerHTML =
+            cand_display_prefix + cand_str + "</div>";
+    }
 
-        function generateAnnotation() {
-            var sentence = document.getElementById("sentence-input").value;
-            var cur_mention_start = Number(document.getElementById("cur-mention-start").innerText);
-            var cur_mention_end = Number(document.getElementById("cur-mention-end").innerText);
-            var xhr = new XMLHttpRequest();
-            var url = "http://127.0.0.1:5000/annotate";
-            xhr.open("POST", url, true);
-            xhr.setRequestHeader("Content-Type", "application/json");
-            xhr.onreadystatechange = function () {
-                if (xhr.readyState === 4 && xhr.status === 200) {
-                    var json = JSON.parse(xhr.responseText);
-                    updateResult(json);
-                }
-            };
-            var data = JSON.stringify({
-                tokens: sentence.trim().split(" "),
-                mention_start: cur_mention_start,
-                mention_end: cur_mention_end,
+    function getInferenceMode() {
+        if (document.getElementById("preset-taxonomy-select").checked) {
+            return document.getElementById("preset-taxonomy-select-value").value;
+        }
+        else {
+            return "custom";
+        }
+    }
+
+    function getCustomInferenceMappings() {
+        var parent_div = document.getElementById("custom-taxonomy-rule-input");
+        var i;
+        var ret = [];
+        if (getInferenceMode() != "custom") {
+            return ret;
+        }
+        for (i = 0; i < parent_div.children.length; i++) {
+            var cur_id = parent_div.children[i].id;
+            var cur_page_group = document.getElementById(cur_id + "-wikipage-input").value.split("/");
+            var cur_page = cur_page_group[cur_page_group.length - 1];
+            var cur_type = document.getElementById(cur_id + "-type-input").value;
+            ret.push(cur_page + "|||" + cur_type);
+        }
+        return ret;
+    }
+
+    function generateAnnotation() {
+        var sentence = document.getElementById("sentence-input").value;
+        var cur_mention_start = Number(document.getElementById("cur-mention-start").innerText);
+        var cur_mention_end = Number(document.getElementById("cur-mention-end").innerText);
+        if (cur_mention_start == -1 || cur_mention_end == -1) {
+            alert("You must select a mention to proceed.");
+            return;
+        }
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", SERVER_API, true);
+        xhr.setRequestHeader("Content-Type", "application/json");
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState === 4 && xhr.status === 200) {
+                var json = JSON.parse(xhr.responseText);
+                updateResult(json);
+            }
+        };
+        var data = JSON.stringify({
+            tokens: sentence.trim().split(" "),
+            mention_start: cur_mention_start,
+            mention_end: cur_mention_end,
+            mode: getInferenceMode(),
+            taxonomy: getCustomInferenceMappings(),
+        });
+        xhr.send(data);
+        document.getElementById("prediction-display").innerHTML =
+            "<div class=\"alert alert-info\" role=\"alert\"><span class=\"glyphicon glyphicon-transfer\"></span>Zoe is processing your request...</div>"
+        document.getElementById("candidate-display").innerHTML = "";
+    }
+</script>
+<script>
+    function handle_custom_taxonomy_select() {
+        document.getElementById("custom-taxonomy-rule-input").style = "";
+        document.getElementById("custom-taxonomy-rule-input-example").style = "";
+    }
+    function handle_preset_taxonomy_select() {
+        document.getElementById("custom-taxonomy-rule-input").style = "display:none";
+        document.getElementById("custom-taxonomy-rule-input-example").style = "display:none";
+    }
+    document.getElementById("custom-taxonomy-select").onclick = handle_custom_taxonomy_select;
+    document.getElementById("preset-taxonomy-select").onclick = handle_preset_taxonomy_select;
+
+    function makeid() {
+        var text = "";
+        var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+        for (var i = 0; i < 5; i++)
+            text += possible.charAt(Math.floor(Math.random() * possible.length));
+
+        return text;
+    }
+
+    function delete_taxonomy_rule(obj) {
+        var div_id = obj.id.split("-")[0];
+        var to_remove = document.getElementById(div_id);
+        to_remove.parentNode.removeChild(to_remove);
+    }
+
+    function generateFormRow(){
+        var id = makeid();
+        var page_value = document.getElementById("wikipage-input").value;
+        var type_value = document.getElementById("type-input").value;
+        if (!page_value.includes("http") || !page_value.includes("wikipedia") || !page_value.includes("/")) {
+            alert("You must enter a valid Wikipedia link.");
+            return;
+        }
+        if (type_value.length == 0) {
+            alert("You must enter a type");
+            return;
+        }
+        if (type_value[0] != '/') {
+            alert("A type must start with /.")
+            return;
+        }
+        var text = "                <div class=\"form-row align-items-center\" id=\"" + id + "\">\n" +
+            "                    <div class=\"col-6\">\n" +
+            "                        <input type=\"text\" class=\"form-control mb-2\" id=\"" + id + "-wikipage-input\" value=\"" + page_value + "\">\n" +
+            "                    </div>\n" +
+            "                    <div class=\"col-3\">\n" +
+            "                        <div class=\"input-group mb-2\">\n" +
+            "                            <input type=\"text\" class=\"form-control\" id=\"" + id + "-type-input\" value=\"" + type_value + "\">\n" +
+            "                        </div>\n" +
+            "                    </div>\n" +
+            "                    <div class=\"col-auto\">\n" +
+            "                        <button type=\"submit\" class=\"btn btn-primary mb-2\" id=\"" + id + "-submit-button\">\n" +
+            "                            <i class=\"fas fa-minus\"></i>\n" +
+            "                        </button>\n" +
+            "                    </div>\n" +
+            "                </div>"
+        document.getElementById("custom-taxonomy-rule-input").innerHTML += text;
+        var parent_div = document.getElementById("custom-taxonomy-rule-input");
+        var i;
+        for (i = 0; i < parent_div.children.length; i++) {
+            var cur_id = parent_div.children[i].id;
+            document.getElementById(cur_id + "-submit-button").addEventListener('click', function(){
+                delete_taxonomy_rule(this);
             });
-            xhr.send(data);
-            document.getElementById("prediction-display").innerHTML =
-                "<div class=\"alert alert-info\" role=\"alert\"><span class=\"glyphicon glyphicon-transfer\"></span>Zoe is processing your request...</div>"
-            document.getElementById("candidate-display").innerHTML = "";
         }
+        document.getElementById("wikipage-input").value = "";
+        document.getElementById("type-input").value = "";
+    }
 
-    </script>
-  </body>
+
+</script>
+</body>
 </html>

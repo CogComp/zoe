@@ -28,12 +28,14 @@ class ZoeRunner:
     @sentence: a sentence in zoe_utils.Sentence structure
     @return: a sentence in zoe_utils that has predicted types set
     """
-    def process_sentence(self, sentence):
+    def process_sentence(self, sentence, inference_processor=None):
         esa_candidates = self.esa_processor.get_candidates(sentence)
         elmo_candidates = self.elmo_processor.rank_candidates(sentence, esa_candidates)
         if len(elmo_candidates) > 0 and elmo_candidates[0][0] == self.elmo_processor.stop_sign:
             return -1
-        self.inference_processor.inference(sentence, elmo_candidates, esa_candidates)
+        if inference_processor is None:
+            inference_processor = self.inference_processor
+        inference_processor.inference(sentence, elmo_candidates, esa_candidates)
         return sentence
 
     """

@@ -1,6 +1,7 @@
 import json
 from main import ZoeRunner
 from zoe_utils import Sentence
+from zoe_utils import InferenceProcessor
 from flask import Flask
 from flask import request
 from flask import send_from_directory
@@ -20,8 +21,12 @@ class Server:
         self.runner.elmo_processor.load_sqlite_db(sql_db_path, server_mode=True)
 
     @staticmethod
-    def handle_root():
-        return send_from_directory('./frontend', 'index.html')
+    def handle_root(path):
+        return send_from_directory('./frontend', path)
+
+    @staticmethod
+    def handle_redirection():
+        return Server.handle_root("index.html")
 
     """
     Main request handler
@@ -36,8 +41,17 @@ class Server:
             ret["candidates"] = []
             return json.dumps(ret)
         sentence = Sentence(r["tokens"], r["mention_start"], r["mention_end"], "")
-        self.runner.process_sentence(sentence)
-        print("Processed mention " + sentence.get_mention_surface())
+        mode = r["mode"]
+        if mode != "figer":
+            if mode != "custom":
+                selected_inference_processor = InferenceProcessor(mode, resource_loader=self.runner.inference_processor)
+                self.runner.process_sentence(sentence, selected_inference_processor)
+            else:
+                rules = r["taxonomy"]
+                #TODO: parse custom rules
+        else:
+            self.runner.process_sentence(sentence)
+        print("Processed mention " + sentence.get_mention_surface() + " in mode " + mode)
         ret["type"] = list(sentence.predicted_types)
         ret["candidates"] = sentence.elmo_candidate_titles
         return json.dumps(ret)
@@ -48,7 +62,8 @@ class Server:
     @port: A port number, default to 80 (Web)
     """
     def start(self, localhost=False, port=80):
-        self.app.add_url_rule("/", "", self.handle_root)
+        self.app.add_url_rule("/", "", self.handle_redirection)
+        self.app.add_url_rule("/<path:path>", "<path:path>", self.handle_root)
         self.app.add_url_rule("/annotate", "annotate", self.handle_input, methods=['POST'])
         if localhost:
             self.app.run()

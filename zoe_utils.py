@@ -10,6 +10,7 @@ import tensorflow as tf
 
 from bilm import dump_bilm_embeddings, dump_bilm_embeddings_inner, initialize_sess
 from scipy.spatial.distance import cosine
+from flask import g
 
 
 class ElmoProcessor:
@@ -31,15 +32,24 @@ class ElmoProcessor:
         self.stop_sign = "STOP_SIGN_SIGNAL"
         self.batcher, self.ids_placeholder, self.ops, self.sess = initialize_sess(self.vocab_file, self.options_file, self.weight_file)
         self.db_loaded = False
+        self.server_mode = False
 
-    def load_sqlite_db(self, path):
+    def load_sqlite_db(self, path, server_mode=False):
         self.db_conn = sqlite3.connect(path)
+        self.db_path = path
+        self.server_mode = server_mode
         self.db_loaded = True
 
     def query_sqlite_db(self, candidates):
         if not self.db_loaded:
             return {}
-        cursor = self.db_conn.cursor()
+        if self.server_mode:
+            db = getattr(g, '_database', None)
+            if db is None:
+                db = g._database = sqlite3.connect(self.db_path)
+            cursor = db.cursor()
+        else:
+            cursor = self.db_conn.cursor()
         ret_map = {}
         for candidate in candidates:
             cursor.execute("SELECT value FROM data WHERE title=?", [candidate])
@@ -322,27 +332,35 @@ class InferenceProcessor:
     """
     It's important to define a @mode as it defines type mappings etc.
     """
-    def __init__(self, mode, do_inference=True, use_prior=True, use_context=True):
+    def __init__(self, mode, do_inference=True, use_prior=True, use_context=True, resource_loader=None, custom_mapping=None):
         self.mode = mode
         self.mapping = {}
         self.do_inference = do_inference
         self.use_prior = use_prior
         self.use_context = use_context
-        mapping_file_name = "mapping/" + self.mode + ".mapping"
-        with open(mapping_file_name) as f:
-            for line in f:
-                line = line.strip()
-                self.mapping[line.split("\t")[0]] = line.split("\t")[1]
-        with open("data/prior_prob.pickle", "rb") as handle:
-            self.prior_prob_map = pickle.load(handle)
-        with open("data/title2freebase.pickle", "rb") as handle:
-            self.freebase_map = pickle.load(handle)
+        if custom_mapping is None:
+            mapping_file_name = "mapping/" + self.mode + ".mapping"
+            with open(mapping_file_name) as f:
+                for line in f:
+                    line = line.strip()
+                    self.mapping[line.split("\t")[0]] = line.split("\t")[1]
+        else:
+            self.mapping = custom_mapping
+        if resource_loader is None:
+            with open("data/prior_prob.pickle", "rb") as handle:
+                self.prior_prob_map = pickle.load(handle)
+            with open("data/title2freebase.pickle", "rb") as handle:
+                self.freebase_map = pickle.load(handle)
+        else:
+            self.prior_prob_map = resource_loader.prior_prob_map
+            self.freebase_map = resource_loader.freebase_map
         self.logic_mappings = []
-        logic_mapping_file_name = "mapping/" + self.mode + ".logic.mapping"
-        with open(logic_mapping_file_name) as f:
-            for line in f:
-                line = line.strip()
-                self.logic_mappings.append(line)
+        if custom_mapping is None:
+            logic_mapping_file_name = "mapping/" + self.mode + ".logic.mapping"
+            with open(logic_mapping_file_name) as f:
+                for line in f:
+                    line = line.strip()
+                    self.logic_mappings.append(line)
 
     """
     Process logic mappings (i.e. additional target_taxonomy to target_taxonomy mappings)

@@ -4,6 +4,7 @@ import sys
 
 from zoe_utils import ElmoProcessor
 
+
 def convert_esa_map(esa_file_name, freq_file_name, invcount_file_name):
     esa_map = {}
     with open(esa_file_name) as f:

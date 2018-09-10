@@ -24,21 +24,39 @@
     <div class="collapse navbar-collapse" id="navbarNavDropdown">
         <ul class="navbar-nav">
             <li class="nav-item active">
-                <a class="nav-link" href="#">About</a>
+                <a class="nav-link" href="https://github.com/CogComp/zoe">Github</a>
             </li>
         </ul>
     </div>
 </nav>
 
+<div class="card mb-2">
+  <div class="card-body">
+    <p class="card-text">This is an online demo of our recent paper
+        <a href="http://cogcomp.org/page/publication_view/845">
+            Zero-Shot Open Entity Typing as Type-Compatible Grounding
+        </a>
+    </p>
+    <p class="card-text">
+        Please use the question buttons when you are looking for instructions.
+        If none of them solves your problem,
+        please create an issue on our Github repo.
+    </p>
+  </div>
+</div>
+
 <!-- Main container -->
-<div class="container">
-    <div class="row">
+<div class="container-fluid">
+    <div class="row justify-content-center">
         <!-- Left panel -->
-        <div class="col col-6">
+        <div class="col col-md-4">
             <div class="row mt-3">
                 <div class="input-group">
                     <div class="input-group-prepend">
                         <span class="input-group-text">Sentence</span>
+                        <button class="btn btn-xs btn-primary" type="button" data-toggle="collapse" data-target="#sentence-help-content" aria-expanded="false" aria-controls="sentence-help-content">
+                            <i class="fas fa-question"></i>
+                        </button>
                     </div>
                     <input type="text" class="form-control" id="sentence-input">
                     <div class="input-group-append">
@@ -48,9 +66,27 @@
                 </div>
             </div>
 
+            <div class="row mt-3 collapse" id="sentence-help-content">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    Enter a sentence here. Please separate each token with a space. Click "Parse!" for the next step,
+                    where you will be asked to select a mention.
+                </div>
+            </div>
+
             <div class="row mt-3">
-                <div class="col-sm-10" id="token-display"></div>
-                <div class="col-sm-2" id="annotate-button"></div>
+                <div class="col-sm-9" id="token-display"></div>
+                <div class="col-sm-3" id="annotate-button"></div>
+            </div>
+
+            <div class="row mt-3 collapse" id="mention-help-content">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    Click on the tokens that constitutes the mention you want to type.
+                    Note that token selections must be consecutive.
+                    You can always un-select and re-select.
+                    Hit "Annotate" when you have finished your selection.
+                </div>
             </div>
 
             <div class="row mt-3">
@@ -65,25 +101,54 @@
             </div>
         </div>
 
+        <div class="col col-sm-1"></div>
+
         <!-- Right panel -->
-        <div class="col col-6">
+        <div class="col col-md-4">
             <div class="form-check">
                 <input class="form-check-input" type="radio" name="taxonomy" id="preset-taxonomy-select" value="preset_taxonomy"
                        checked>
                 <label class="form-check-label" for="preset-taxonomy-select">
                     Preset Taxonomy
                 </label>
+                <small>
+                    <button class="btn btn-xs btn-primary" type="button" data-toggle="collapse" data-target="#preset-help-content" aria-expanded="false" aria-controls="preset-help-content">
+                        <i class="fas fa-question"></i>
+                    </button>
+                </small>
                 <select class="form-control" id="preset-taxonomy-select-value">
                     <option>figer</option>
                     <option>bbn</option>
                     <option>ontonotes</option>
                 </select>
+                <div class="row mt-3 collapse" id="preset-help-content">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        Use this option when you want to type with one of the three preset taxonomies.
+                        Select from the drop-down for the desired taxonomy.
+                    </div>
+                </div>
             </div>
             <div class="form-check">
                 <input class="form-check-input" type="radio" name="taxonomy" id="custom-taxonomy-select" value="custom_taxonomy">
                 <label class="form-check-label" for="custom-taxonomy-select">
                     Define Your Own
                 </label>
+                <small>
+                    <button class="btn btn-xs btn-primary" type="button" data-toggle="collapse" data-target="#custom-help-content" aria-expanded="false" aria-controls="custom-help-content">
+                        <i class="fas fa-question"></i>
+                    </button>
+                </small>
+                <div class="row mt-3 collapse" id="custom-help-content">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        Select this option if you want to define your own taxonomy.
+                        To make things easier, instead of letting you choose from FreeBase types,
+                        we ask you to find a few examples that belongs to the custom type you want.
+                        Enter a valid Wikipedia URL in the left input box, and the custom type name in the right input box.
+                        The more examples you find, in theory the more precise the mapping is.
+                    </div>
+                </div>
             </div>
             <div id="custom-taxonomy-rule-input" style="display: none">
             </div>
@@ -107,6 +172,7 @@
         </div>
     </div>
 </div>
+
 
 <!-- Optional JavaScript -->
 <!-- jQuery first, then Popper.js, then Bootstrap JS -->
@@ -147,6 +213,10 @@
         }
         document.getElementById("annotate-button").innerHTML =
             "<button type=\"button\" class=\"btn btn-success\" id=\"annotate-button-actual\">Annotate</button>";
+        document.getElementById("annotate-button").innerHTML +=
+            "<button class=\"btn btn-xs btn-primary\" type=\"button\" data-toggle=\"collapse\" data-target=\"#mention-help-content\" aria-expanded=\"false\" aria-controls=\"mention-help-content\">\n" +
+            "<i class=\"fas fa-question\"></i>\n" +
+            "</button>";
         var annotate_button = document.getElementById("annotate-button-actual");
         annotate_button.onclick = generateAnnotation;
     }

@@ -1,10 +1,12 @@
 import json
+import signal
 from main import ZoeRunner
 from zoe_utils import Sentence
 from zoe_utils import InferenceProcessor
 from flask import Flask
 from flask import request
 from flask import send_from_directory
+from flask import g
 from flask_cors import CORS
 
 
@@ -19,6 +21,7 @@ class Server:
         CORS(self.app)
         self.runner = ZoeRunner(allow_tensorflow=True)
         self.runner.elmo_processor.load_sqlite_db(sql_db_path, server_mode=True)
+        signal.signal(signal.SIGINT, self.grace_end)
 
     @staticmethod
     def handle_root(path):
@@ -74,26 +77,46 @@ class Server:
     def handle_input(self):
         ret = {}
         r = request.get_json()
-        if "tokens" not in r or "mention_start" not in r or "mention_end" not in r:
-            ret["type"] = ["INVALID_INPUT"]
-            ret["candidates"] = []
+        if "tokens" not in r or "mention_starts" not in r or "mention_ends" not in r:
+            ret["type"] = [["INVALID_INPUT"]]
+            ret["mentions"] = []
+            ret["candidates"] = [[]]
             return json.dumps(ret)
-        sentence = Sentence(r["tokens"], r["mention_start"], r["mention_end"], "")
+        sentences = []
+        for i in range(0, len(r["mention_starts"])):
+            sentence = Sentence(r["tokens"], int(r["mention_starts"][i]), int(r["mention_ends"][i]), "")
+            sentences.append(sentence)
         mode = r["mode"]
+        predicted_types = []
+        predicted_candidates = []
+        mentions = []
         if mode != "figer":
             if mode != "custom":
                 selected_inference_processor = InferenceProcessor(mode, resource_loader=self.runner.inference_processor)
-                self.runner.process_sentence(sentence, selected_inference_processor)
+                for sentence in sentences:
+                    self.runner.process_sentence(sentence, selected_inference_processor)
+                    predicted_types.append(list(sentence.predicted_types))
+                    predicted_candidates.append(sentence.elmo_candidate_titles)
+                    mentions.append(sentence.get_mention_surface_raw())
             else:
                 rules = r["taxonomy"]
                 mappings = self.parse_custom_rules(rules)
                 custom_inference_processor = InferenceProcessor(mode, custom_mapping=mappings)
-                self.runner.process_sentence(sentence, custom_inference_processor)
+                for sentence in sentences:
+                    self.runner.process_sentence(sentence, custom_inference_processor)
+                    predicted_types.append(list(sentence.predicted_types))
+                    predicted_candidates.append(sentence.elmo_candidate_titles)
+                    mentions.append(sentence.get_mention_surface_raw())
         else:
-            self.runner.process_sentence(sentence)
-        print("Processed mention " + sentence.get_mention_surface() + " in mode " + mode)
-        ret["type"] = list(sentence.predicted_types)
-        ret["candidates"] = sentence.elmo_candidate_titles
+            for sentence in sentences:
+                self.runner.process_sentence(sentence)
+                predicted_types.append(list(sentence.predicted_types))
+                predicted_candidates.append(sentence.elmo_candidate_titles)
+                mentions.append(sentence.get_mention_surface_raw())
+        print("Processed mention " + str([x.get_mention_surface() for x in sentences]) + " in mode " + mode)
+        ret["type"] = predicted_types
+        ret["candidates"] = predicted_candidates
+        ret["mentions"] = mentions
         return json.dumps(ret)
 
     """
@@ -110,8 +133,15 @@ class Server:
         else:
             self.app.run(host='0.0.0.0', port=port)
 
+    def grace_end(self, signum, frame):
+        print("Gracefully Existing...")
+        if self.runner.elmo_processor.db_loaded:
+            self.runner.elmo_processor.db_conn.close()
+        print("Resource Released. Existing.")
+        exit(0)
+
 
 if __name__ == '__main__':
-    server = Server("/Users/xuanyuzhou/Downloads/elmo_cache_correct.db")
+    server = Server("/Volumes/Storage/Resources/wikilinks/elmo_cache_correct.db")
     server.start(localhost=True)
 

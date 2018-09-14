@@ -11,13 +11,14 @@ import tensorflow as tf
 from bilm import dump_bilm_embeddings, dump_bilm_embeddings_inner, initialize_sess
 from scipy.spatial.distance import cosine
 from flask import g
+from cache import ElmoProcessorCache
 
 
 class ElmoProcessor:
 
     RANKED_RETURN_NUM = 20
 
-    def __init__(self, allow_tensorflow):
+    def __init__(self, allow_tensorflow, use_mem_cache=False):
         self.datadir = os.path.join('bilm-tf', 'model')
         self.vocab_file = os.path.join(self.datadir, 'vocab_test.txt')
         self.options_file = os.path.join(self.datadir, 'elmo_2x4096_512_2048cnn_2xhighway_options.json')
@@ -33,6 +34,10 @@ class ElmoProcessor:
         self.batcher, self.ids_placeholder, self.ops, self.sess = initialize_sess(self.vocab_file, self.options_file, self.weight_file)
         self.db_loaded = False
         self.server_mode = False
+        if use_mem_cache:
+            self.mem_cache = ElmoProcessorCache(self)
+        else:
+            self.mem_cache = None
 
     def load_sqlite_db(self, path, server_mode=False):
         self.db_conn = sqlite3.connect(path)
@@ -199,12 +204,15 @@ class ElmoProcessor:
     def rank_candidates(self, sentence, candidates):
         candidates = [x[0] for x in candidates]
         target_vec = []
-        if sentence.get_mention_surface() not in self.target_embedding_map and self.allow_tensorflow:
-            target_additional_map = self.process_single_continuous(sentence.get_sent_str())
-            if sentence.get_mention_surface() in target_additional_map:
-                target_vec = target_additional_map[sentence.get_mention_surface()]
-        if sentence.get_mention_surface() in self.target_embedding_map:
-            target_vec = self.target_embedding_map[sentence.get_mention_surface()]
+        if self.mem_cache is None:
+            if sentence.get_mention_surface() not in self.target_embedding_map and self.allow_tensorflow:
+                target_additional_map = self.process_single_continuous(sentence.get_sent_str())
+                if sentence.get_mention_surface() in target_additional_map:
+                    target_vec = target_additional_map[sentence.get_mention_surface()]
+            if sentence.get_mention_surface() in self.target_embedding_map:
+                target_vec = self.target_embedding_map[sentence.get_mention_surface()]
+        else:
+            target_vec = self.mem_cache.query_cache(sentence)
         sentences_to_process = []
         if self.db_loaded:
             wikilinks_embedding_map = self.query_sqlite_db(candidates)
@@ -222,7 +230,6 @@ class ElmoProcessor:
         wikilinks_additional_map = {}
         if len(sentences_to_process) > 0 and self.allow_tensorflow:
             wikilinks_additional_map = self.process_batch_continuous(sentences_to_process)
-
         if len(target_vec) == 0:
             return [(self.stop_sign, 0.0)]
         self.target_output_embedding_map[sentence.get_mention_surface()] = target_vec

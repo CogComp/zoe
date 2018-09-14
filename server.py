@@ -1,12 +1,13 @@
 import json
 import signal
+import time
+
 from main import ZoeRunner
 from zoe_utils import Sentence
 from zoe_utils import InferenceProcessor
 from flask import Flask
 from flask import request
 from flask import send_from_directory
-from flask import g
 from flask_cors import CORS
 
 
@@ -19,7 +20,7 @@ class Server:
     def __init__(self, sql_db_path):
         self.app = Flask(__name__)
         CORS(self.app)
-        self.runner = ZoeRunner(allow_tensorflow=True)
+        self.runner = ZoeRunner(allow_tensorflow=True, use_mem_cache=True)
         self.runner.elmo_processor.load_sqlite_db(sql_db_path, server_mode=True)
         signal.signal(signal.SIGINT, self.grace_end)
 
@@ -75,6 +76,7 @@ class Server:
     in the format of a json string
     """
     def handle_input(self):
+        start_time = time.time()
         ret = {}
         r = request.get_json()
         if "tokens" not in r or "mention_starts" not in r or "mention_ends" not in r:
@@ -113,7 +115,8 @@ class Server:
                 predicted_types.append(list(sentence.predicted_types))
                 predicted_candidates.append(sentence.elmo_candidate_titles)
                 mentions.append(sentence.get_mention_surface_raw())
-        print("Processed mention " + str([x.get_mention_surface() for x in sentences]) + " in mode " + mode)
+        elapsed_time = time.time() - start_time
+        print("Processed mention " + str([x.get_mention_surface() for x in sentences]) + " in mode " + mode + ". TIME: " + str(elapsed_time) + " seconds.")
         ret["type"] = predicted_types
         ret["candidates"] = predicted_candidates
         ret["mentions"] = mentions
@@ -142,6 +145,6 @@ class Server:
 
 
 if __name__ == '__main__':
-    server = Server("/Volumes/Storage/Resources/wikilinks/elmo_cache_correct.db")
+    server = Server("/Volumes/Research/elmo_cache_correct.db")
     server.start(localhost=True)
 

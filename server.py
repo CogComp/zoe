@@ -2,13 +2,15 @@ import json
 import signal
 import time
 
-from main import ZoeRunner
-from zoe_utils import Sentence
-from zoe_utils import InferenceProcessor
 from flask import Flask
 from flask import request
 from flask import send_from_directory
 from flask_cors import CORS
+
+from cache import ServerCache
+from main import ZoeRunner
+from zoe_utils import InferenceProcessor
+from zoe_utils import Sentence
 
 
 class Server:
@@ -20,7 +22,8 @@ class Server:
     def __init__(self, sql_db_path):
         self.app = Flask(__name__)
         CORS(self.app)
-        self.runner = ZoeRunner(allow_tensorflow=True, use_mem_cache=True)
+        self.mem_cache = ServerCache()
+        self.runner = ZoeRunner(allow_tensorflow=True)
         self.runner.elmo_processor.load_sqlite_db(sql_db_path, server_mode=True)
         signal.signal(signal.SIGINT, self.grace_end)
 
@@ -96,7 +99,13 @@ class Server:
             if mode != "custom":
                 selected_inference_processor = InferenceProcessor(mode, resource_loader=self.runner.inference_processor)
                 for sentence in sentences:
-                    self.runner.process_sentence(sentence, selected_inference_processor)
+                    sentence.set_signature(selected_inference_processor.signature())
+                    cached = self.mem_cache.query_cache(sentence)
+                    if cached is not None:
+                        sentence = cached
+                    else:
+                        self.runner.process_sentence(sentence, selected_inference_processor)
+                        self.mem_cache.insert_cache(sentence)
                     predicted_types.append(list(sentence.predicted_types))
                     predicted_candidates.append(sentence.elmo_candidate_titles)
                     mentions.append(sentence.get_mention_surface_raw())
@@ -105,13 +114,25 @@ class Server:
                 mappings = self.parse_custom_rules(rules)
                 custom_inference_processor = InferenceProcessor(mode, custom_mapping=mappings)
                 for sentence in sentences:
-                    self.runner.process_sentence(sentence, custom_inference_processor)
+                    sentence.set_signature(custom_inference_processor.signature())
+                    cached = self.mem_cache.query_cache(sentence)
+                    if cached is not None:
+                        sentence = cached
+                    else:
+                        self.runner.process_sentence(sentence, custom_inference_processor)
+                        self.mem_cache.insert_cache(sentence)
                     predicted_types.append(list(sentence.predicted_types))
                     predicted_candidates.append(sentence.elmo_candidate_titles)
                     mentions.append(sentence.get_mention_surface_raw())
         else:
             for sentence in sentences:
-                self.runner.process_sentence(sentence)
+                sentence.set_signature(self.runner.inference_processor.signature())
+                cached = self.mem_cache.query_cache(sentence)
+                if cached is not None:
+                    sentence = cached
+                else:
+                    self.runner.process_sentence(sentence)
+                    self.mem_cache.insert_cache(sentence)
                 predicted_types.append(list(sentence.predicted_types))
                 predicted_candidates.append(sentence.elmo_candidate_titles)
                 mentions.append(sentence.get_mention_surface_raw())

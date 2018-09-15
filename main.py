@@ -16,8 +16,8 @@ class ZoeRunner:
                       It's set to False in experiments as ELMo results are cached,
                       but please set it to default True when running on new sentences.
     """
-    def __init__(self, allow_tensorflow=True, use_mem_cache=False):
-        self.elmo_processor = ElmoProcessor(allow_tensorflow, use_mem_cache)
+    def __init__(self, allow_tensorflow=True):
+        self.elmo_processor = ElmoProcessor(allow_tensorflow)
         self.esa_processor = EsaProcessor()
         self.inference_processor = InferenceProcessor("figer")
         self.evaluator = Evaluator()

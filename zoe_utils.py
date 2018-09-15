@@ -1,3 +1,4 @@
+import hashlib
 import json
 import math
 import os
@@ -7,10 +8,9 @@ import sqlite3
 import numpy as np
 import regex
 import tensorflow as tf
-
 from bilm import dump_bilm_embeddings, dump_bilm_embeddings_inner, initialize_sess
-from scipy.spatial.distance import cosine
 from flask import g
+from scipy.spatial.distance import cosine
 
 
 class ElmoProcessor:
@@ -222,7 +222,6 @@ class ElmoProcessor:
         wikilinks_additional_map = {}
         if len(sentences_to_process) > 0 and self.allow_tensorflow:
             wikilinks_additional_map = self.process_batch_continuous(sentences_to_process)
-
         if len(target_vec) == 0:
             return [(self.stop_sign, 0.0)]
         self.target_output_embedding_map[sentence.get_mention_surface()] = target_vec
@@ -361,6 +360,12 @@ class InferenceProcessor:
                 for line in f:
                     line = line.strip()
                     self.logic_mappings.append(line)
+
+    """
+    Compute a unique signature of the current inference mode
+    """
+    def signature(self):
+        return hashlib.sha224(str(self.mapping).encode('utf-8')).hexdigest()
 
     """
     Process logic mappings (i.e. additional target_taxonomy to target_taxonomy mappings)
@@ -661,6 +666,7 @@ class InferenceProcessor:
         sentence.set_esa_candidates(esa_titles)
         sentence.set_elmo_candidates(elmo_titles)
         sentence.set_selected_candidate(selected_title)
+        sentence.set_signature(self.signature())
 
 
 class Sentence:
@@ -674,6 +680,7 @@ class Sentence:
         self.esa_candidate_titles = []
         self.elmo_candidate_titles = []
         self.selected_candidate = ""
+        self.inference_signature = ""
 
     """
     @returns: A string tokenized by "_"
@@ -718,6 +725,9 @@ class Sentence:
 
     def set_selected_candidate(self, selected):
         self.selected_candidate = selected
+
+    def set_signature(self, signature):
+        self.inference_signature = signature
 
     def print_self(self):
         print(self.get_sent_str())

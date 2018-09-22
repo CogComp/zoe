@@ -666,6 +666,10 @@ class InferenceProcessor:
         sentence.set_esa_candidates(esa_titles)
         sentence.set_elmo_candidates(elmo_titles)
         sentence.set_selected_candidate(selected_title)
+        if from_prior:
+            sentence.selected_title = "SURF-" + selected_title
+        else:
+            sentence.selected_title = "ELMO-" + selected_title
         sentence.set_signature(self.signature())
 
 
@@ -679,6 +683,7 @@ class Sentence:
         self.predicted_types = []
         self.esa_candidate_titles = []
         self.elmo_candidate_titles = []
+        self.selected_title = ""
         self.selected_candidate = ""
         self.inference_signature = ""
 

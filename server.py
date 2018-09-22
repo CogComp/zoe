@@ -2,12 +2,14 @@ import json
 import signal
 import time
 
+from ccg_nlpy import local_pipeline
 from flask import Flask
 from flask import request
 from flask import send_from_directory
 from flask_cors import CORS
 
 from cache import ServerCache
+from cache import SurfaceCache
 from main import ZoeRunner
 from zoe_utils import InferenceProcessor
 from zoe_utils import Sentence
@@ -19,10 +21,12 @@ class Server:
     Initialize the server with needed resources
     @sql_db_path: The path pointing to the ELMo caches sqlite file
     """
-    def __init__(self, sql_db_path):
+    def __init__(self, sql_db_path, surface_cache_path):
         self.app = Flask(__name__)
         CORS(self.app)
         self.mem_cache = ServerCache()
+        self.surface_cache = SurfaceCache(surface_cache_path)
+        self.pipeline = local_pipeline.LocalPipeline()
         self.runner = ZoeRunner(allow_tensorflow=True)
         self.runner.elmo_processor.load_sqlite_db(sql_db_path, server_mode=True)
         signal.signal(signal.SIGINT, self.grace_end)
@@ -82,8 +86,9 @@ class Server:
         start_time = time.time()
         ret = {}
         r = request.get_json()
-        if "tokens" not in r or "mention_starts" not in r or "mention_ends" not in r:
+        if "tokens" not in r or "mention_starts" not in r or "mention_ends" not in r or "index" not in r:
             ret["type"] = [["INVALID_INPUT"]]
+            ret["index"] = -1
             ret["mentions"] = []
             ret["candidates"] = [[]]
             return json.dumps(ret)
@@ -94,6 +99,7 @@ class Server:
         mode = r["mode"]
         predicted_types = []
         predicted_candidates = []
+        selected_candidates = []
         mentions = []
         if mode != "figer":
             if mode != "custom":
@@ -106,9 +112,11 @@ class Server:
                     else:
                         self.runner.process_sentence(sentence, selected_inference_processor)
                         self.mem_cache.insert_cache(sentence)
+                        self.surface_cache.insert_cache(sentence)
                     predicted_types.append(list(sentence.predicted_types))
                     predicted_candidates.append(sentence.elmo_candidate_titles)
                     mentions.append(sentence.get_mention_surface_raw())
+                    selected_candidates.append(sentence.selected_title)
             else:
                 rules = r["taxonomy"]
                 mappings = self.parse_custom_rules(rules)
@@ -121,9 +129,11 @@ class Server:
                     else:
                         self.runner.process_sentence(sentence, custom_inference_processor)
                         self.mem_cache.insert_cache(sentence)
+                        self.surface_cache.insert_cache(sentence)
                     predicted_types.append(list(sentence.predicted_types))
                     predicted_candidates.append(sentence.elmo_candidate_titles)
                     mentions.append(sentence.get_mention_surface_raw())
+                    selected_candidates.append(sentence.selected_title)
         else:
             for sentence in sentences:
                 sentence.set_signature(self.runner.inference_processor.signature())
@@ -133,14 +143,57 @@ class Server:
                 else:
                     self.runner.process_sentence(sentence)
                     self.mem_cache.insert_cache(sentence)
+                    self.surface_cache.insert_cache(sentence)
                 predicted_types.append(list(sentence.predicted_types))
                 predicted_candidates.append(sentence.elmo_candidate_titles)
                 mentions.append(sentence.get_mention_surface_raw())
+                selected_candidates.append(sentence.selected_title)
         elapsed_time = time.time() - start_time
         print("Processed mention " + str([x.get_mention_surface() for x in sentences]) + " in mode " + mode + ". TIME: " + str(elapsed_time) + " seconds.")
         ret["type"] = predicted_types
         ret["candidates"] = predicted_candidates
         ret["mentions"] = mentions
+        ret["index"] = r["index"]
+        ret["selected_candidates"] = selected_candidates
+        return json.dumps(ret)
+
+    """
+    Handles chunker requests for mention filling
+    """
+    def handle_mention_input(self):
+        r = request.get_json()
+        ret = {'mention_spans': []}
+        if "tokens" not in r:
+            return json.dumps(ret)
+        tokens = r["tokens"]
+        doc = self.pipeline.doc([tokens], pretokenized=True)
+        shallow_parse_view = doc.get_shallow_parse
+        for chunk in shallow_parse_view:
+            if chunk['label'] == 'NP':
+                ret['mention_spans'].append([chunk['start'], chunk['end']])
+        return json.dumps(ret)
+
+    """
+    Handles surface form cached requests
+    This is expected to return sooner than actual processing
+    """
+    def handle_simple_input(self):
+        ret = {}
+        r = request.get_json()
+        if "tokens" not in r or "mention_starts" not in r or "mention_ends" not in r or "index" not in r:
+            ret["type"] = [["INVALID_INPUT"]]
+            return json.dumps(ret)
+        sentences = []
+        for i in range(0, len(r["mention_starts"])):
+            sentence = Sentence(r["tokens"], int(r["mention_starts"][i]), int(r["mention_ends"][i]), "")
+            sentences.append(sentence)
+        types = []
+        for sentence in sentences:
+            surface = sentence.get_mention_surface()
+            cached_types = self.surface_cache.query_cache(surface)
+            types.append(cached_types)
+        ret["type"] = types
+        ret["index"] = r["index"]
         return json.dumps(ret)
 
     """
@@ -152,6 +205,8 @@ class Server:
         self.app.add_url_rule("/", "", self.handle_redirection)
         self.app.add_url_rule("/<path:path>", "<path:path>", self.handle_root)
         self.app.add_url_rule("/annotate", "annotate", self.handle_input, methods=['POST'])
+        self.app.add_url_rule("/annotate_mention", "annotate_mention", self.handle_mention_input, methods=['POST'])
+        self.app.add_url_rule("/annotate_cache", "annotate_cache", self.handle_simple_input, methods=['POST'])
         if localhost:
             self.app.run()
         else:
@@ -166,6 +221,6 @@ class Server:
 
 
 if __name__ == '__main__':
-    server = Server("/Volumes/Research/elmo_cache_correct.db")
+    server = Server("/Volumes/Storage/Resources/wikilinks/elmo_cache_correct.db", "./surface_cache.db")
     server.start(localhost=True)
 

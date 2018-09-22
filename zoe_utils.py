@@ -675,11 +675,13 @@ class InferenceProcessor:
 
 class Sentence:
 
-    def __init__(self, tokens, mention_start, mention_end, gold_types):
+    def __init__(self, tokens, mention_start, mention_end, gold_types=None):
         self.tokens = tokens
         self.mention_start = int(mention_start)
         self.mention_end = int(mention_end)
         self.gold_types = gold_types
+        if self.gold_types is None:
+            self.gold_types = []
         self.predicted_types = []
         self.esa_candidate_titles = []
         self.elmo_candidate_titles = []
@@ -828,8 +830,9 @@ class Evaluator:
 
 class DataReader:
 
-    def __init__(self, data_file_name, size=-1):
+    def __init__(self, data_file_name, size=-1, unique=False):
         self.sentences = []
+        self.unique = unique
         if not os.path.isfile(data_file_name):
             print("[ERROR] No sentences read.")
             return
@@ -841,5 +844,7 @@ class DataReader:
                 mentions = data['mentions']
                 for mention in mentions:
                     self.sentences.append(Sentence(tokens, mention['start'], mention['end'], mention['labels']))
+                    if self.unique:
+                        break
         if size > 0:
             self.sentences = self.sentences[:size]

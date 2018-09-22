@@ -2,10 +2,13 @@ import os
 import pickle
 import sys
 
+from ccg_nlpy import local_pipeline
+
 from cache import SurfaceCache
 from main import ZoeRunner
 from zoe_utils import DataReader
 from zoe_utils import ElmoProcessor
+from zoe_utils import Sentence
 
 
 def convert_esa_map(esa_file_name, freq_file_name, invcount_file_name):
@@ -250,16 +253,19 @@ def progress_bar(value, endvalue, bar_length=20):
 
 
 def produce_surface_cache(db_name, cache_name):
+    pipeline = local_pipeline.LocalPipeline()
     cache = SurfaceCache(db_name, server_mode=False)
     runner = ZoeRunner()
     runner.elmo_processor.load_sqlite_db(cache_name, server_mode=False)
-    dataset = DataReader("data/large_text.json", -1)
+    dataset = DataReader("data/large_text.json", size=-1, unique=True)
     counter = 0
     total = len(dataset.sentences)
     for sentence in dataset.sentences:
-        runner.process_sentence(sentence)
-        cache.insert_cache(sentence)
-        counter += 1
+        ta = pipeline.doc([sentence.tokens], pretokenized=True)
+        for chunk in ta.get_shallow_parse:
+            new_sentence = Sentence(sentence.tokens, chunk['start'], chunk['end'])
+            runner.process_sentence(new_sentence)
+            cache.insert_cache(new_sentence)
         progress_bar(counter, total)
 
 

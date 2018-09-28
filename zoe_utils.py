@@ -615,6 +615,18 @@ class InferenceProcessor:
                 final_ret_types.add(t)
         return final_ret_types
 
+    def get_all_possible_coarse_types(self, candidates):
+        candidates = [x[0] for x in candidates]
+        freq_map = {}
+        for candidate in candidates:
+            for ct in self.get_coarse_types_of_title(candidate):
+                if ct in freq_map:
+                    freq_map[ct] += 1
+                else:
+                    freq_map[ct] = 1
+        sorted_types = sorted(freq_map.items(), key=lambda kv: kv[1], reverse=True)
+        return [x[0] for x in sorted_types[:3]]
+
     """
     Inference utility function which make predictions and set results to the input @sentence
     @sentence: A zoe_utils.Sentence
@@ -654,6 +666,7 @@ class InferenceProcessor:
             elmo_score_map[selected_title] = 1.0
         elmo_type_score = self.get_elmo_type_scores(elmo_score_map)
         inferred_types = self.get_inferred_types(selected_title, elmo_candidates, elmo_type_score, from_prior)
+        could_also_be_types = self.get_all_possible_coarse_types(elmo_candidates)
         final_types = self.get_final_types(set(inferred_types))
         if len(final_types) == 0 and "EMPTY" in self.mapping:
             final_types.add(self.mapping["EMPTY"])
@@ -663,6 +676,7 @@ class InferenceProcessor:
             final_types = self.get_types_of_title(prob_title)
         # set predictions
         sentence.set_predictions(final_types)
+        sentence.set_could_also_be_types(could_also_be_types)
         sentence.set_esa_candidates(esa_titles)
         sentence.set_elmo_candidates(elmo_titles)
         sentence.set_selected_candidate(selected_title)
@@ -683,6 +697,7 @@ class Sentence:
         if self.gold_types is None:
             self.gold_types = []
         self.predicted_types = []
+        self.could_also_be_types = []
         self.esa_candidate_titles = []
         self.elmo_candidate_titles = []
         self.selected_title = ""
@@ -723,6 +738,9 @@ class Sentence:
 
     def set_predictions(self, predicted_types):
         self.predicted_types = predicted_types
+
+    def set_could_also_be_types(self, could_also_be_types):
+        self.could_also_be_types = list(set(could_also_be_types) - set(self.predicted_types))
 
     def set_esa_candidates(self, esa_candidate_titles):
         self.esa_candidate_titles = esa_candidate_titles

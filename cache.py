@@ -29,7 +29,7 @@ class ServerCache:
         db = ServerCache.get_mem_db()
         cursor = db.cursor()
         cursor.execute("DROP TABLE IF EXISTS memcache")
-        cursor.execute("CREATE TABLE memcache (key TEXT PRIMARY KEY, value BLOB, time INTEGER)")
+        cursor.execute("CREATE TABLE IF NOT EXISTS memcache (key TEXT PRIMARY KEY, value BLOB, time INTEGER)")
         db.commit()
         self.added_count = 0
         self.initialized = True

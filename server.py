@@ -99,6 +99,7 @@ class Server:
         mode = r["mode"]
         predicted_types = []
         predicted_candidates = []
+        other_possible_types = []
         selected_candidates = []
         mentions = []
         if mode != "figer":
@@ -117,6 +118,7 @@ class Server:
                     predicted_candidates.append(sentence.elmo_candidate_titles)
                     mentions.append(sentence.get_mention_surface_raw())
                     selected_candidates.append(sentence.selected_title)
+                    other_possible_types.append(sentence.could_also_be_types)
             else:
                 rules = r["taxonomy"]
                 mappings = self.parse_custom_rules(rules)
@@ -134,6 +136,7 @@ class Server:
                     predicted_candidates.append(sentence.elmo_candidate_titles)
                     mentions.append(sentence.get_mention_surface_raw())
                     selected_candidates.append(sentence.selected_title)
+                    other_possible_types.append(sentence.could_also_be_types)
         else:
             for sentence in sentences:
                 sentence.set_signature(self.runner.inference_processor.signature())
@@ -148,6 +151,7 @@ class Server:
                 predicted_candidates.append(sentence.elmo_candidate_titles)
                 mentions.append(sentence.get_mention_surface_raw())
                 selected_candidates.append(sentence.selected_title)
+                other_possible_types.append(sentence.could_also_be_types)
         elapsed_time = time.time() - start_time
         print("Processed mention " + str([x.get_mention_surface() for x in sentences]) + " in mode " + mode + ". TIME: " + str(elapsed_time) + " seconds.")
         ret["type"] = predicted_types
@@ -155,6 +159,7 @@ class Server:
         ret["mentions"] = mentions
         ret["index"] = r["index"]
         ret["selected_candidates"] = selected_candidates
+        ret["other_possible_type"] = other_possible_types
         return json.dumps(ret)
 
     """
@@ -221,6 +226,6 @@ class Server:
 
 
 if __name__ == '__main__':
-    server = Server("/Volumes/Storage/Resources/wikilinks/elmo_cache_correct.db", "./surface_cache.db")
+    server = Server("/Volumes/Storage/Resources/wikilinks/elmo_cache_correct.db", "./data/surface_cache_new.db")
     server.start(localhost=True)
 

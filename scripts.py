@@ -2,7 +2,13 @@ import os
 import pickle
 import sys
 
+from ccg_nlpy import local_pipeline
+
+from cache import SurfaceCache
+from main import ZoeRunner
+from zoe_utils import DataReader
 from zoe_utils import ElmoProcessor
+from zoe_utils import Sentence
 
 
 def convert_esa_map(esa_file_name, freq_file_name, invcount_file_name):
@@ -192,13 +198,6 @@ def compare_runlogs(runlog_file_a, runlog_file_b):
                         print("Log B prediction: " + str(compare_sentence.predicted_types))
 
 
-def chunks(chunkable, n):
-    """ Yield successive n-sized chunks from l.
-    """
-    for i in xrange(0, len(chunkable), n):
-        yield chunkable[i:i+n]
-
-
 def produce_cache():
     elmo_processor = ElmoProcessor(allow_tensorflow=True)
     to_process = []
@@ -245,6 +244,31 @@ def produce_cache():
         to_process_concepts.append(concept)
 
 
+def progress_bar(value, endvalue, bar_length=20):
+    percent = float(value) / endvalue
+    arrow = '-' * int(round(percent * bar_length) - 1) + '>'
+    spaces = ' ' * (bar_length - len(arrow))
+    sys.stdout.write("\rProgress: [{0}] {1}%".format(arrow + spaces, round(percent * 100, 3)))
+    sys.stdout.flush()
+
+
+def produce_surface_cache(db_name, cache_name):
+    pipeline = local_pipeline.LocalPipeline()
+    cache = SurfaceCache(db_name, server_mode=False)
+    runner = ZoeRunner()
+    runner.elmo_processor.load_sqlite_db(cache_name, server_mode=False)
+    dataset = DataReader("data/large_text.json", size=-1, unique=True)
+    counter = 0
+    total = len(dataset.sentences)
+    for sentence in dataset.sentences:
+        ta = pipeline.doc([sentence.tokens], pretokenized=True)
+        for chunk in ta.get_shallow_parse:
+            new_sentence = Sentence(sentence.tokens, chunk['start'], chunk['end'])
+            runner.process_sentence(new_sentence)
+            cache.insert_cache(new_sentence)
+        progress_bar(counter, total)
+
+
 if __name__ == '__main__':
     if len(sys.argv) < 2:
         print("[ERROR]: No command given.")
@@ -260,3 +284,5 @@ if __name__ == '__main__':
         compare_runlogs(sys.argv[2], sys.argv[3])
     if sys.argv[1] == "CACHE":
         produce_cache()
+    if sys.argv[1] == "SURFACECACHE":
+        produce_surface_cache("data/surface_cache.db", "/Volumes/Storage/Resources/wikilinks/elmo_cache_correct.db")

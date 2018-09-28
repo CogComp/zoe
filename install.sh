@@ -11,3 +11,4 @@ venv/bin/pip3 install -r requirements.txt
 wget http://cogcomp.org/Data/ccgPapersData/xzhou45/zoe/data.zip
 unzip -n data.zip
 rm data.zip
+python -m ccg_nlpy download

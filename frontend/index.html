@@ -176,7 +176,7 @@
     </div>
 
     <div class="row mt-3">
-        <div class="col col-6">
+        <div class="col col-8">
             <div id="prediction-display"></div>
         </div>
     </div>
@@ -231,7 +231,9 @@
         }
         for (var j = 0; j < tokens.length; j++) {
             var button = document.getElementById("token-" + j);
-            button.onclick = processButton;
+            button.onclick = function() {
+                processButton(this, true);
+            };
         }
         document.getElementById("annotate-button").innerHTML =
             "<button type=\"button\" class=\"btn btn-success\" id=\"annotate-button-actual\">Annotate</button>";
@@ -249,18 +251,64 @@
             for (m = 0; m < preset_mentions.length; m++) {
                 var n;
                 for (n = preset_mentions[m][0]; n < preset_mentions[m][1]; n++) {
-                    processButtonSelect(document.getElementById("token-" + String(n)));
+                    processButton(document.getElementById("token-" + String(n)), false);
                 }
             }
+            generateAnnotation();
+        }
+        else {
+            generatePresetMentions();
         }
         document.getElementById("using-preset-example").innerText = String(-1);
     }
 
-    function processButton() {
-        if (this.classList.contains("btn-outline-primary")) {
-            processButtonSelect(this);
+    function generatePresetMentions() {
+        var sentence = document.getElementById("sentence-input").value;
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", SERVER_API + "annotate_mention", true);
+        xhr.setRequestHeader("Content-Type", "application/json");
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState === 4 && xhr.status === 200) {
+                var json = JSON.parse(xhr.responseText);
+                updatePresetResult(json);
+            }
+        };
+        var data = JSON.stringify({
+            tokens: sentence.trim().split(" "),
+        });
+        xhr.send(data);
+    }
+
+    function updatePresetResult(result) {
+        var spans = result['mention_spans'];
+        var i;
+        var prev_end = -1;
+        for (i = 0; i < spans.length; i++) {
+            var span = spans[i];
+            var start = Number(span[0]);
+            var end = Number(span[1]);
+            if (start == prev_end) {
+                continue;
+            }
+            var j;
+            for (j = start; j < end; j++) {
+                processButton(document.getElementById("token-" + String(j)), false);
+            }
+            prev_end = end;
+        }
+        generateAnnotation();
+    }
+
+    function processButton(but, manual) {
+        if (but.classList.contains("btn-outline-primary")) {
+            processButtonSelect(but);
         } else {
-            processButtonUnselect(this);
+            processButtonUnselect(but);
+        }
+        if (manual == true) {
+            document.getElementById("annotate-button").style.visibility = "visible";
+        } else {
+            document.getElementById("annotate-button").style.visibility = "hidden";
         }
     }
 
@@ -279,54 +327,56 @@
     }
 
     function processButtonSelect(but) {
-        but.classList.remove("btn-outline-primary");
-        but.classList.add("btn-primary");
+        if (but.classList.contains("btn-outline-primary")){
+            but.classList.remove("btn-outline-primary");
+            but.classList.add("btn-primary");
+        }
+    }
+
+    function genWikiSpanHelper(title) {
+        return "<a target=\"_blank\" href=\"http://en.wikipedia.org/wiki/"
+            + title
+            + "\"><span class=\"badge badge-primary mt-1\">" + title + "</span></a>";
     }
 
     function updateResult(result) {
         var predictions = result['type'];
         var candidates = result['candidates'];
-        var mentions = result['mentions'];
-        var table = "<table class=\"table table-striped\">\n" +
-            "<thead>\n" +
-            "<tr>\n" +
-            "<th scope=\"col\">#</th>\n" +
-            "<th scope=\"col\">Mention</th>\n" +
-            "<th scope=\"col\">Type</th>\n" +
-            "<th scope=\"col\">Candidates</th>\n" +
-            "</tr>\n" +
-            "</thead>\n" +
-            "<tbody>";
-        var i;
-        for (i = 0; i < predictions.length; i++) {
-            var cand_display_prefix =
-                "<div class=\"alert alert-success mt-1\" role=\"alert\">" +
-                "Some concepts used for inference: ";
-            var cand_str = "";
-            for (var j = 0; j < candidates[i].length; j++) {
-                var candidate = candidates[i][j];
-                cand_str += "<a target=\"_blank\" href=\"http://en.wikipedia.org/wiki/" + candidate +
-                    "\"><span class=\"badge badge-primary mt-1\">" + candidate + "</span></a>";
-            }
-            table += "<tr><th score='row'>" + String(i) + "</th>"
-                + "<td>" + mentions[i] + "</td>"
-                + "<td>" + String(predictions[i]) + "</td>"
-                + "<td><button class='btn btn-primary' type='button' data-toggle='collapse' data-target='#row-hidden-"
-                + String(i) + "'>Show more</button></td></tr>"
-                + "<tr>\n" +
-                "<td colspan='6' class='hiddenRow'>\n" +
-                "<div class='collapse' id='row-hidden-" + String(i) + "'>" +
-                cand_display_prefix + cand_str + "</div>" +
-                "</div>\n" +
-                "</td>\n" +
-                "</tr>"
+        var other_predictions = result['other_possible_type'];
+        var index = result["index"];
+        var selected_candidate_info = result["selected_candidates"][0].split("-");
+        var cand_str = "<div class=\"alert alert-success mt-1\" role=\"alert\">";
+        if (selected_candidate_info[0] == "SURF") {
+            cand_str += "A key concept was selected via surface form: " + genWikiSpanHelper(selected_candidate_info[1]);
+            cand_str += "<br>";
         }
-        table += "</tbody></table>";
-        document.getElementById("prediction-display").innerHTML =
-            "<div class=\"alert alert-success\" role=\"alert\">" +
-            "Zoe gave the following outputs:" +
-            "</div>" +
-            table;
+        else {
+            cand_str += "A most likely match was selected via context consistency: " + genWikiSpanHelper(selected_candidate_info[1]);
+            cand_str += "<br>";
+        }
+        cand_str += "All concepts that were used for inference: ";
+        for (var j = 0; j < candidates[0].length; j++) {
+            var candidate = candidates[0][j];
+            cand_str += genWikiSpanHelper(candidate);
+        }
+        document.getElementById("row-hidden-" + String(index)).innerHTML = cand_str + "</div>";
+        var toggle_button =
+            "<button class='btn btn-primary' type='button' data-toggle='collapse' data-target='#row-hidden-"
+            + String(index)
+            + "'>Show more</button>";
+        document.getElementById("row-button-" + String(index)).innerHTML = toggle_button;
+        document.getElementById("row-computed-" + String(index)).innerHTML =
+            "<div class=\"alert alert-info\" role=\"alert\">" +
+            String(predictions[0]) +
+            "</div>";
+        document.getElementById("row-computed-" + String(index)).innerHTML +=
+            "Could also be: " + String(other_predictions);
+    }
+
+    function updateCachedResult(result) {
+        var types = result["type"];
+        var index = result["index"];
+        document.getElementById("row-simple-" + String(index)).innerHTML = String(types);
     }
 
     function getInferenceMode() {
@@ -359,11 +409,13 @@
         var sentence = document.getElementById("sentence-input").value;
         var mention_starts = [];
         var mention_ends = [];
+        var tokens = [];
         var parent_div = document.getElementById("token-display");
         var i;
         for (i = 0; i < parent_div.children.length; i++) {
             var cur_id = parent_div.children[i].id;
             var idx = Number(cur_id.split("-")[1]);
+            tokens.push(parent_div.children[i].innerHTML);
             if (parent_div.children[i].classList.contains("btn-primary")) {
                 if (idx == 0) {
                     mention_starts.push(idx);
@@ -389,26 +441,86 @@
             alert("You must select a mention to proceed.");
             return;
         }
-        var xhr = new XMLHttpRequest();
-        xhr.open("POST", SERVER_API, true);
-        xhr.setRequestHeader("Content-Type", "application/json");
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState === 4 && xhr.status === 200) {
-                var json = JSON.parse(xhr.responseText);
-                updateResult(json);
+        var loading_sign = "<img width='10%' src='./loading_icon.gif'>Loading...";
+        var mention_surfaces = [];
+        for (i = 0; i < mention_starts.length; i++) {
+            var start_span = mention_starts[i];
+            var end_span = mention_ends[i];
+            var combined = "";
+            var j;
+            for (j = start_span; j < end_span; j++) {
+                combined += tokens[j] + " ";
             }
-        };
-        var data = JSON.stringify({
-            tokens: sentence.trim().split(" "),
-            mention_starts: mention_starts,
-            mention_ends: mention_ends,
-            mode: getInferenceMode(),
-            taxonomy: getCustomInferenceMappings(),
-        });
-        xhr.send(data);
+            mention_surfaces.push(combined);
+        }
+        console.log(mention_surfaces);
+        var table = "<table class=\"table\">\n" +
+            "<thead>\n" +
+            "<tr>\n" +
+            "<th scope=\"col\">#</th>\n" +
+            "<th scope=\"col\">Mention</th>\n" +
+            "<th scope=\"col\">Cache Type</th>\n" +
+            "<th scope=\"col\">Contextual Type</th>\n" +
+            "<th scope=\"col\">Why?</th>\n" +
+            "</tr>\n" +
+            "</thead>\n" +
+            "<tbody>";
+        for (i = 0; i < mention_surfaces.length; i++) {
+            table += "<tr><th score='row'>" + String(i) + "</th>"
+                + "<td>" + mention_surfaces[i] + "</td>"
+                + "<td id='row-simple-" + String(i) + "'>" + loading_sign + "</td>"
+                + "<td id='row-computed-" + String(i) + "'>" + loading_sign + "</td>"
+                + "<td id='row-button-" + String(i) + "'>" + loading_sign + "</td></tr>"
+                + "<tr>\n" +
+                "<td colspan='6' class='hiddenRow'>\n" +
+                "<div class='collapse' id='row-hidden-" + String(i) + "'></div>" +
+                "</div>\n" +
+                "</td>\n" +
+                "</tr>"
+        }
+        table += "</tbody></table>";
         document.getElementById("prediction-display").innerHTML =
-            "<div class=\"alert alert-info\" role=\"alert\"><span class=\"glyphicon glyphicon-transfer\"></span>Zoe is processing your request...</div>"
-        document.getElementById("candidate-display").innerHTML = "";
+            "<div class=\"alert alert-success\" role=\"alert\">" +
+            "Zoe gave the following outputs:" +
+            "</div>" +
+            table;
+        for (let i = 0; i < mention_surfaces.length; i++) {
+            let xhr_simple = new XMLHttpRequest();
+            xhr_simple.open("POST", SERVER_API + "annotate_cache", true);
+            xhr_simple.setRequestHeader("Content-Type", "application/json");
+            xhr_simple.onreadystatechange = function () {
+                if (xhr_simple.readyState === XMLHttpRequest.DONE && xhr_simple.status === 200) {
+                    var json = JSON.parse(xhr_simple.responseText);
+                    updateCachedResult(json);
+                }
+            };
+            var data_simple = JSON.stringify({
+                index: i,
+                tokens: sentence.trim().split(" "),
+                mention_starts: [mention_starts[i]],
+                mention_ends: [mention_ends[i]],
+            });
+            xhr_simple.send(data_simple);
+
+            let xhr = new XMLHttpRequest();
+            xhr.open("POST", SERVER_API + "annotate", true);
+            xhr.setRequestHeader("Content-Type", "application/json");
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
+                    var json = JSON.parse(xhr.responseText);
+                    updateResult(json);
+                }
+            };
+            var data = JSON.stringify({
+                index: i,
+                tokens: sentence.trim().split(" "),
+                mention_starts: [mention_starts[i]],
+                mention_ends: [mention_ends[i]],
+                mode: getInferenceMode(),
+                taxonomy: getCustomInferenceMappings(),
+            });
+            xhr.send(data);
+        }
     }
 </script>
 <script>

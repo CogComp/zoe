@@ -29,6 +29,7 @@ class Server:
         self.pipeline = local_pipeline.LocalPipeline()
         self.runner = ZoeRunner(allow_tensorflow=True)
         self.runner.elmo_processor.load_sqlite_db(sql_db_path, server_mode=True)
+        self.runner.elmo_processor.rank_candidates_vec()
         signal.signal(signal.SIGINT, self.grace_end)
 
     @staticmethod
@@ -196,8 +197,29 @@ class Server:
         for sentence in sentences:
             surface = sentence.get_mention_surface()
             cached_types = self.surface_cache.query_cache(surface)
-            types.append(cached_types)
+            distinct = set()
+            for t in cached_types:
+                distinct.add("/" + t.split("/")[1])
+            types.append(list(distinct))
         ret["type"] = types
+        ret["index"] = r["index"]
+        return json.dumps(ret)
+
+    def handle_word2vec_input(self):
+        ret = {}
+        r = request.get_json()
+        if "tokens" not in r or "mention_starts" not in r or "mention_ends" not in r or "index" not in r:
+            ret["type"] = [["INVALID_INPUT"]]
+            return json.dumps(ret)
+        sentences = []
+        for i in range(0, len(r["mention_starts"])):
+            sentence = Sentence(r["tokens"], int(r["mention_starts"][i]), int(r["mention_ends"][i]), "")
+            sentences.append(sentence)
+        predicted_types = []
+        for sentence in sentences:
+            self.runner.process_sentence_vec(sentence)
+            predicted_types.append(list(sentence.predicted_types))
+        ret["type"] = predicted_types
         ret["index"] = r["index"]
         return json.dumps(ret)
 
@@ -212,6 +234,7 @@ class Server:
         self.app.add_url_rule("/annotate", "annotate", self.handle_input, methods=['POST'])
         self.app.add_url_rule("/annotate_mention", "annotate_mention", self.handle_mention_input, methods=['POST'])
         self.app.add_url_rule("/annotate_cache", "annotate_cache", self.handle_simple_input, methods=['POST'])
+        self.app.add_url_rule("/annotate_vec", "annotate_vec", self.handle_word2vec_input, methods=['POST'])
         if localhost:
             self.app.run()
         else:

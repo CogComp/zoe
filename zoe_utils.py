@@ -5,6 +5,7 @@ import os
 import pickle
 import sqlite3
 
+import gensim
 import numpy as np
 import regex
 import tensorflow as tf
@@ -33,6 +34,7 @@ class ElmoProcessor:
         self.batcher, self.ids_placeholder, self.ops, self.sess = initialize_sess(self.vocab_file, self.options_file, self.weight_file)
         self.db_loaded = False
         self.server_mode = False
+        self.word2vec = None
 
     def load_sqlite_db(self, path, server_mode=False):
         self.db_conn = sqlite3.connect(path)
@@ -237,6 +239,51 @@ class ElmoProcessor:
                 results[candidate] = ElmoProcessor.cosine_helper(target_vec, wikilinks_vec)
             else:
                 results[candidate] = 0.0
+        sorted_results = sorted(results.items(), key=lambda kv: kv[1], reverse=True)
+        return [(x[0], x[1]) for x in sorted_results][:self.RANKED_RETURN_NUM]
+
+    def word2vec_helper(self, input):
+        vec = np.zeros(300)
+        if self.word2vec is None:
+            return None
+        if input in self.word2vec:
+            return self.word2vec[input]
+        if input.lower() in self.word2vec:
+            return self.word2vec[input.lower()]
+        count = 0.0
+        for token in input.split("_"):
+            if token in self.word2vec:
+                vec += self.word2vec[token]
+                count += 1.0
+            elif token.lower() in self.word2vec:
+                vec += self.word2vec[token.lower()]
+                count += 1.0
+        if count == 0.0:
+            return None
+        return vec / count
+
+    def rank_candidates_vec(self, sentence=None, candidates=None):
+        data_path = "data/word2vec/GoogleNews-vectors-negative300.bin"
+        if not os.path.isfile(data_path):
+            return candidates
+        if self.word2vec is None:
+            self.word2vec = gensim.models.KeyedVectors.load_word2vec_format(data_path, binary=True)
+        if sentence is None:
+            return None
+        candidates = [x[0] for x in candidates]
+        target_vec = self.word2vec_helper(sentence.get_mention_surface())
+        if target_vec is None:
+            print(sentence.get_mention_surface() + " not found in word2vec")
+            return candidates
+        assert(len(target_vec) == 300)
+        results = {}
+        for candidate in candidates:
+            candidate_vec = self.word2vec_helper(candidate)
+            if candidate_vec is None:
+                similarity = 0
+            else:
+                similarity = cosine(target_vec, candidate_vec)
+            results[candidate] = similarity
         sorted_results = sorted(results.items(), key=lambda kv: kv[1], reverse=True)
         return [(x[0], x[1]) for x in sorted_results][:self.RANKED_RETURN_NUM]
 

@@ -379,6 +379,12 @@
         document.getElementById("row-simple-" + String(index)).innerHTML = String(types);
     }
 
+    function updateVecResult(result) {
+        var types = result["type"];
+        var index = result["index"];
+        document.getElementById("row-vec-" + String(index)).innerHTML = String(types);
+    }
+
     function getInferenceMode() {
         if (document.getElementById("preset-taxonomy-select").checked) {
             return document.getElementById("preset-taxonomy-select-value").value;
@@ -459,7 +465,8 @@
             "<tr>\n" +
             "<th scope=\"col\">#</th>\n" +
             "<th scope=\"col\">Mention</th>\n" +
-            "<th scope=\"col\">Cache Type</th>\n" +
+            "<th scope=\"col\">Cached Types (surface)</th>\n" +
+            "<th scope=\"col\">Word2Vec based (surface)</th>\n" +
             "<th scope=\"col\">Contextual Type</th>\n" +
             "<th scope=\"col\">Why?</th>\n" +
             "</tr>\n" +
@@ -469,6 +476,7 @@
             table += "<tr><th score='row'>" + String(i) + "</th>"
                 + "<td>" + mention_surfaces[i] + "</td>"
                 + "<td id='row-simple-" + String(i) + "'>" + loading_sign + "</td>"
+                + "<td id='row-vec-" + String(i) + "'>" + loading_sign + "</td>"
                 + "<td id='row-computed-" + String(i) + "'>" + loading_sign + "</td>"
                 + "<td id='row-button-" + String(i) + "'>" + loading_sign + "</td></tr>"
                 + "<tr>\n" +
@@ -485,6 +493,23 @@
             "</div>" +
             table;
         for (let i = 0; i < mention_surfaces.length; i++) {
+            let xhr_vec = new XMLHttpRequest();
+            xhr_vec.open("POST", SERVER_API + "annotate_vec", true);
+            xhr_vec.setRequestHeader("Content-Type", "application/json");
+            xhr_vec.onreadystatechange = function () {
+                if (xhr_vec.readyState === XMLHttpRequest.DONE && xhr_vec.status === 200) {
+                    var json = JSON.parse(xhr_vec.responseText);
+                    updateVecResult(json);
+                }
+            };
+            var data_vec = JSON.stringify({
+                index: i,
+                tokens: sentence.trim().split(" "),
+                mention_starts: [mention_starts[i]],
+                mention_ends: [mention_ends[i]],
+            });
+            xhr_vec.send(data_vec);
+
             let xhr_simple = new XMLHttpRequest();
             xhr_simple.open("POST", SERVER_API + "annotate_cache", true);
             xhr_simple.setRequestHeader("Content-Type", "application/json");

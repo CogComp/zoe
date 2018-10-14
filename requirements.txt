@@ -7,3 +7,4 @@ Flask
 flask-cors
 cython
 ccg_nlpy
+gensim

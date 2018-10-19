@@ -223,6 +223,19 @@ class Server:
         ret["index"] = r["index"]
         return json.dumps(ret)
 
+    def handle_elmo_input(self):
+        ret = {}
+        results = []
+        r = request.get_json()
+        if "sentence" not in r:
+            ret["vectors"] = []
+            return json.dumps(ret)
+        elmo_map = self.runner.elmo_processor.process_single_continuous(r["sentence"])
+        for token in r["sentence"].split():
+            results.append((token, str(elmo_map[token])))
+        ret["vectors"] = results
+        return json.dumps(ret)
+
     """
     Handler to start the Flask app
     @localhost: Whether the server lives only in localhost
@@ -235,6 +248,7 @@ class Server:
         self.app.add_url_rule("/annotate_mention", "annotate_mention", self.handle_mention_input, methods=['POST'])
         self.app.add_url_rule("/annotate_cache", "annotate_cache", self.handle_simple_input, methods=['POST'])
         self.app.add_url_rule("/annotate_vec", "annotate_vec", self.handle_word2vec_input, methods=['POST'])
+        self.app.add_url_rule("/annotate_elmo", "annotate_elmo", self.handle_elmo_input, methods=['POST'])
         if localhost:
             self.app.run()
         else:
@@ -249,6 +263,6 @@ class Server:
 
 
 if __name__ == '__main__':
-    server = Server("/Volumes/Storage/Resources/wikilinks/elmo_cache_correct.db", "./data/surface_cache_new.db")
+    server = Server("/Volumes/External/elmo_cache_correct.db", "./data/surface_cache_new.db")
     server.start(localhost=True)
 

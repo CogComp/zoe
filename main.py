@@ -38,6 +38,16 @@ class ZoeRunner:
         inference_processor.inference(sentence, elmo_candidates, esa_candidates)
         return sentence
 
+    def process_sentence_vec(self, sentence, inference_processor=None):
+        esa_candidates = self.esa_processor.get_candidates(sentence)
+        elmo_candidates = self.elmo_processor.rank_candidates_vec(sentence, esa_candidates)
+        if len(elmo_candidates) > 0 and elmo_candidates[0][0] == self.elmo_processor.stop_sign:
+            return -1
+        if inference_processor is None:
+            inference_processor = self.inference_processor
+        inference_processor.inference(sentence, elmo_candidates, esa_candidates)
+        return sentence
+
     """
     Helper function to evaluate on a dataset that has multiple sentences
     @file_name: A string indicating the data file. 

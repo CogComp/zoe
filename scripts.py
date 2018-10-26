@@ -1,5 +1,6 @@
 import os
 import pickle
+import sqlite3
 import sys
 
 from ccg_nlpy import local_pipeline
@@ -269,6 +270,18 @@ def produce_surface_cache(db_name, cache_name):
         progress_bar(counter, total)
 
 
+def produce_magnitude_vec_file(db_name, out_file):
+    conn = sqlite3.connect(db_name)
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM data")
+    w = open(out_file, "w")
+    for row in cursor:
+        key = row[0]
+        val = row[1]
+        val = val[1:-1].replace(",", "")
+        w.write(key + " " + val + "\n")
+
+
 if __name__ == '__main__':
     if len(sys.argv) < 2:
         print("[ERROR]: No command given.")
@@ -286,3 +299,5 @@ if __name__ == '__main__':
         produce_cache()
     if sys.argv[1] == "SURFACECACHE":
         produce_surface_cache("data/surface_cache.db", "/Volumes/Storage/Resources/wikilinks/elmo_cache_correct.db")
+    if sys.argv[1] == "PRODUCE_VEC":
+        produce_magnitude_vec_file("/Volumes/External/elmo_cache_correct.db", "/Volumes/External/elmo_cache.vec")

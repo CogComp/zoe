@@ -1,6 +1,7 @@
 import json
 import signal
 import time
+import traceback
 
 from ccg_nlpy import local_pipeline
 from flask import Flask
@@ -27,6 +28,7 @@ class Server:
         self.mem_cache = ServerCache()
         self.surface_cache = SurfaceCache(surface_cache_path)
         self.pipeline = local_pipeline.LocalPipeline()
+        self.pipeline_initialize_helper(['.'])
         self.runner = ZoeRunner(allow_tensorflow=True)
         self.runner.elmo_processor.load_sqlite_db(sql_db_path, server_mode=True)
         self.runner.elmo_processor.rank_candidates_vec()
@@ -163,8 +165,15 @@ class Server:
         ret["other_possible_type"] = other_possible_types
         return json.dumps(ret)
 
+    def pipeline_initialize_helper(self, tokens):
+        doc = self.pipeline.doc([tokens], pretokenized=True)
+        doc.get_shallow_parse
+        doc.get_ner_conll
+        doc.get_ner_ontonotes
+        doc.get_view("MENTION")
+
     """
-    Handles chunker requests for mention filling
+    Handles requests for mention filling
     """
     def handle_mention_input(self):
         r = request.get_json()
@@ -174,9 +183,45 @@ class Server:
         tokens = r["tokens"]
         doc = self.pipeline.doc([tokens], pretokenized=True)
         shallow_parse_view = doc.get_shallow_parse
-        for chunk in shallow_parse_view:
-            if chunk['label'] == 'NP':
-                ret['mention_spans'].append([chunk['start'], chunk['end']])
+        ner_conll_view = doc.get_ner_conll
+        ner_ontonotes_view = doc.get_ner_ontonotes
+        md_view = doc.get_view("MENTION")
+        ret_set = set()
+        ret_list = []
+        additions_views = []
+        if ner_ontonotes_view.cons_list is not None:
+            additions_views.append(ner_ontonotes_view)
+        if md_view.cons_list is not None:
+            additions_views.append(md_view)
+        if shallow_parse_view.cons_list is not None:
+            additions_views.append(shallow_parse_view)
+        try:
+            if ner_conll_view.cons_list is not None:
+                for ner_conll in ner_conll_view:
+                    for i in range(ner_conll['start'], ner_conll['end']):
+                        ret_set.add(i)
+                    ret_list.append((ner_conll['start'], ner_conll['end']))
+            for additions_view in additions_views:
+                for cons in additions_view:
+                    add_to_list = True
+                    if additions_view.view_name != "MENTION":
+                        start = cons['start']
+                        end = cons['end']
+                    else:
+                        start = cons['properties']['EntityHeadStartSpan']
+                        end = cons['properties']['EntityHeadEndSpan']
+                    for i in range(start - 1, end + 1):
+                        if i in ret_set:
+                            add_to_list = False
+                            break
+                    if add_to_list:
+                        for i in range(start, end):
+                            ret_set.add(i)
+                        ret_list.append((start, end))
+        except Exception as e:
+            traceback.print_exc()
+            print(e)
+        ret['mention_spans'] = ret_list
         return json.dumps(ret)
 
     """

@@ -277,7 +277,7 @@ class ElmoProcessor:
         target_vec = self.word2vec_helper(sentence.get_mention_surface())
         if target_vec is None:
             print(sentence.get_mention_surface() + " not found in word2vec")
-            return candidates
+            return [(x, 0.0) for x in candidates]
         assert(len(target_vec) == 300)
         results = {}
         for candidate in candidates:

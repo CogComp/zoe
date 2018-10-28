@@ -37,10 +37,13 @@ class ElmoProcessor:
         self.word2vec = None
 
     def load_sqlite_db(self, path, server_mode=False):
+        if not os.path.isfile(path):
+            return False
         self.db_conn = sqlite3.connect(path)
         self.db_path = path
         self.server_mode = server_mode
         self.db_loaded = True
+        return True
 
     def query_sqlite_db(self, candidates):
         if not self.db_loaded:
@@ -274,7 +277,7 @@ class ElmoProcessor:
         target_vec = self.word2vec_helper(sentence.get_mention_surface())
         if target_vec is None:
             print(sentence.get_mention_surface() + " not found in word2vec")
-            return candidates
+            return [(x, 0.0) for x in candidates]
         assert(len(target_vec) == 300)
         results = {}
         for candidate in candidates:

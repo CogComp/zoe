@@ -30,7 +30,11 @@ class Server:
         self.pipeline = local_pipeline.LocalPipeline()
         self.pipeline_initialize_helper(['.'])
         self.runner = ZoeRunner(allow_tensorflow=True)
-        self.runner.elmo_processor.load_sqlite_db(sql_db_path, server_mode=True)
+        status = self.runner.elmo_processor.load_sqlite_db(sql_db_path, server_mode=True)
+        if not status:
+            print("ELMo cache file is not found. Server mode is prohibited without it.")
+            print("Please contact the author for this cache, or modify this code if you know what you are doing.")
+            exit(1)
         self.runner.elmo_processor.rank_candidates_vec()
         signal.signal(signal.SIGINT, self.grace_end)
 
@@ -108,53 +112,31 @@ class Server:
         if mode != "figer":
             if mode != "custom":
                 selected_inference_processor = InferenceProcessor(mode, resource_loader=self.runner.inference_processor)
-                for sentence in sentences:
-                    sentence.set_signature(selected_inference_processor.signature())
-                    cached = self.mem_cache.query_cache(sentence)
-                    if cached is not None:
-                        sentence = cached
-                    else:
-                        self.runner.process_sentence(sentence, selected_inference_processor)
-                        self.mem_cache.insert_cache(sentence)
-                        self.surface_cache.insert_cache(sentence)
-                    predicted_types.append(list(sentence.predicted_types))
-                    predicted_candidates.append(sentence.elmo_candidate_titles)
-                    mentions.append(sentence.get_mention_surface_raw())
-                    selected_candidates.append(sentence.selected_title)
-                    other_possible_types.append(sentence.could_also_be_types)
             else:
                 rules = r["taxonomy"]
                 mappings = self.parse_custom_rules(rules)
-                custom_inference_processor = InferenceProcessor(mode, custom_mapping=mappings)
-                for sentence in sentences:
-                    sentence.set_signature(custom_inference_processor.signature())
-                    cached = self.mem_cache.query_cache(sentence)
-                    if cached is not None:
-                        sentence = cached
-                    else:
-                        self.runner.process_sentence(sentence, custom_inference_processor)
-                        self.mem_cache.insert_cache(sentence)
-                        self.surface_cache.insert_cache(sentence)
-                    predicted_types.append(list(sentence.predicted_types))
-                    predicted_candidates.append(sentence.elmo_candidate_titles)
-                    mentions.append(sentence.get_mention_surface_raw())
-                    selected_candidates.append(sentence.selected_title)
-                    other_possible_types.append(sentence.could_also_be_types)
+                selected_inference_processor = InferenceProcessor(mode, custom_mapping=mappings)
         else:
-            for sentence in sentences:
-                sentence.set_signature(self.runner.inference_processor.signature())
-                cached = self.mem_cache.query_cache(sentence)
-                if cached is not None:
-                    sentence = cached
-                else:
-                    self.runner.process_sentence(sentence)
+            selected_inference_processor = self.runner.inference_processor
+
+        for sentence in sentences:
+            sentence.set_signature(selected_inference_processor.signature())
+            cached = self.mem_cache.query_cache(sentence)
+            if cached is not None:
+                sentence = cached
+            else:
+                self.runner.process_sentence(sentence, selected_inference_processor)
+                try:
                     self.mem_cache.insert_cache(sentence)
                     self.surface_cache.insert_cache(sentence)
-                predicted_types.append(list(sentence.predicted_types))
-                predicted_candidates.append(sentence.elmo_candidate_titles)
-                mentions.append(sentence.get_mention_surface_raw())
-                selected_candidates.append(sentence.selected_title)
-                other_possible_types.append(sentence.could_also_be_types)
+                except:
+                    print("Cache insertion exception. Ignored.")
+            predicted_types.append(list(sentence.predicted_types))
+            predicted_candidates.append(sentence.elmo_candidate_titles)
+            mentions.append(sentence.get_mention_surface_raw())
+            selected_candidates.append(sentence.selected_title)
+            other_possible_types.append(sentence.could_also_be_types)
+
         elapsed_time = time.time() - start_time
         print("Processed mention " + str([x.get_mention_surface() for x in sentences]) + " in mode " + mode + ". TIME: " + str(elapsed_time) + " seconds.")
         ret["type"] = predicted_types
@@ -171,6 +153,17 @@ class Server:
         doc.get_ner_conll
         doc.get_ner_ontonotes
         doc.get_view("MENTION")
+
+    def handle_tokenizer_input(self):
+        r = request.get_json()
+        ret = {"tokens": []}
+        if "sentence" not in r:
+            return json.dumps(ret)
+        doc = self.pipeline.doc(r["sentence"])
+        token_view = doc.get_tokens
+        for cons in token_view:
+            ret["tokens"].append(str(cons))
+        return json.dumps(ret)
 
     """
     Handles requests for mention filling
@@ -205,12 +198,12 @@ class Server:
                 for cons in additions_view:
                     add_to_list = True
                     if additions_view.view_name != "MENTION":
-                        start = cons['start']
-                        end = cons['end']
+                        start = int(cons['start'])
+                        end = int(cons['end'])
                     else:
-                        start = cons['properties']['EntityHeadStartSpan']
-                        end = cons['properties']['EntityHeadEndSpan']
-                    for i in range(start - 1, end + 1):
+                        start = int(cons['properties']['EntityHeadStartSpan'])
+                        end = int(cons['properties']['EntityHeadEndSpan'])
+                    for i in range(max(start - 1, 0), min(len(tokens), end + 1)):
                         if i in ret_set:
                             add_to_list = False
                             break
@@ -242,10 +235,13 @@ class Server:
         for sentence in sentences:
             surface = sentence.get_mention_surface()
             cached_types = self.surface_cache.query_cache(surface)
-            distinct = set()
-            for t in cached_types:
-                distinct.add("/" + t.split("/")[1])
-            types.append(list(distinct))
+            if cached_types is not None:
+                distinct = set()
+                for t in cached_types:
+                    distinct.add("/" + t.split("/")[1])
+                types.append(list(distinct))
+            else:
+                types.append([])
         ret["type"] = types
         ret["index"] = r["index"]
         return json.dumps(ret)
@@ -290,6 +286,7 @@ class Server:
         self.app.add_url_rule("/", "", self.handle_redirection)
         self.app.add_url_rule("/<path:path>", "<path:path>", self.handle_root)
         self.app.add_url_rule("/annotate", "annotate", self.handle_input, methods=['POST'])
+        self.app.add_url_rule("/annotate_token", "annotate_token", self.handle_tokenizer_input, methods=['POST'])
         self.app.add_url_rule("/annotate_mention", "annotate_mention", self.handle_mention_input, methods=['POST'])
         self.app.add_url_rule("/annotate_cache", "annotate_cache", self.handle_simple_input, methods=['POST'])
         self.app.add_url_rule("/annotate_vec", "annotate_vec", self.handle_word2vec_input, methods=['POST'])

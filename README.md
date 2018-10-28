@@ -28,6 +28,7 @@ To this end, we are working on an online demo, and we plan to release it before 
 * Minimum 16G available disk space and 16G memory. (Lower specs will not work)
 * Python 3.X (Mostly tested on 3.5)
 * A POSIX OS (Windows not tested)
+* Java JDK and Maven
 * `virtualenv` if you are installing with script (check if `virtualenv` command works)
 * `wget` if you are installing with script (Use brew to install it on OSX)
 * `unzip` if you are installing with script
@@ -59,6 +60,10 @@ Currently you can do the following:
 * Run experiment on FIGER test set (randomly sampled as the paper): `python3 main.py figer`
 * Run experiment on BBN test set: `python3 main.py bbn`
 * Run experiment on the first 1000 Ontonotes_fine test set instances (due to size issue): `python3 main.py ontonotes`
+
+Additionally, you can run server mode that initializes an online demo with `python3 server.py`
+However, this requires some additional file that's not provided for download yet.
+Please directly contact the authors.
 
 It's generally an expensive operation to run on new sentences, but you can still do it.
 Please refer to `main.py` to see how you can test on your own data. 

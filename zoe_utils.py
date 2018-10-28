@@ -37,10 +37,13 @@ class ElmoProcessor:
         self.word2vec = None
 
     def load_sqlite_db(self, path, server_mode=False):
+        if not os.path.isfile(path):
+            return False
         self.db_conn = sqlite3.connect(path)
         self.db_path = path
         self.server_mode = server_mode
         self.db_loaded = True
+        return True
 
     def query_sqlite_db(self, candidates):
         if not self.db_loaded:

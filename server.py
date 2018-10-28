@@ -30,7 +30,11 @@ class Server:
         self.pipeline = local_pipeline.LocalPipeline()
         self.pipeline_initialize_helper(['.'])
         self.runner = ZoeRunner(allow_tensorflow=True)
-        self.runner.elmo_processor.load_sqlite_db(sql_db_path, server_mode=True)
+        status = self.runner.elmo_processor.load_sqlite_db(sql_db_path, server_mode=True)
+        if not status:
+            print("ELMo cache file is not found. Server mode is prohibited without it.")
+            print("Please contact the author for this cache, or modify this code if you know what you are doing.")
+            exit(1)
         self.runner.elmo_processor.rank_candidates_vec()
         signal.signal(signal.SIGINT, self.grace_end)
 

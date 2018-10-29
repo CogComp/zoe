@@ -143,6 +143,9 @@
                 <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
                     <a class="dropdown-item" onclick="useExample(1);">Iced Earth’s...</a>
                     <a class="dropdown-item" onclick="useExample(2);">James was...</a>
+                    <a class="dropdown-item" onclick="useExample(3);">A helicopter...</a>
+                    <a class="dropdown-item" onclick="useExample(4);">On Saturday...</a>
+                    <a class="dropdown-item" onclick="useExample(5);">Jane was...</a>
                 </div>
             </div>
             <div class="input-group-append">
@@ -155,8 +158,7 @@
     <div class="row mt-3 collapse" id="sentence-help-content">
         <div class="alert alert-info">
             <i class="fas fa-info-circle"></i>
-            Enter a sentence here. Please separate each token with a space. Click "Parse!" for the next step,
-            where you will be asked to select a mention.
+            Enter a sentence here. Click "Parse!" for the next step.
         </div>
     </div>
 
@@ -656,6 +658,15 @@
         if (id == 2) {
             return "James was selected by his hometown team , the Cleveland Cavaliers , as the first overall pick of the 2003 NBA draft .";
         }
+        if (id == 3) {
+            return "A helicopter which was carrying the owner of Leicester City FC has crashed in flames near the club's ground. ";
+        }
+        if (id == 4) {
+            return "On Saturday night, the authorities were still looking for Bowers, and had searched his apartment with dogs.";
+        }
+        if (id == 5) {
+            return "Jane was infected with an unknown illness, so she took the bus and went to the capital for better treatment.";
+        }
     }
 
     function getExampleSentenceMention(id) {
@@ -664,6 +675,15 @@
         }
         if (id == 2) {
             return [[0, 1], [5, 7], [9, 11], [20, 21]];
+        }
+        if (id == 3) {
+            return [[0, 2], [6, 7], [8, 11], [14, 15], [19, 20]];
+        }
+        if (id == 4) {
+            return [[1, 2], [5, 6], [10, 11], [15, 17], [18, 19]];
+        }
+        if (id == 5) {
+            return [[0, 1], [4, 7], [9, 10], [12, 13], [17, 18], [19, 21]];
         }
     }
 

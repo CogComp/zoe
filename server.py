@@ -198,6 +198,8 @@ class Server:
                 for cons in additions_view:
                     add_to_list = True
                     if additions_view.view_name != "MENTION":
+                        if additions_view.view_name == "SHALLOW_PARSE" and cons['label'] != "NP":
+                            continue
                         start = int(cons['start'])
                         end = int(cons['end'])
                     else:

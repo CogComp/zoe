@@ -16,6 +16,11 @@
             padding: 0 !important;
         }
     </style>
+    <style>
+    .hidden-surface-col  {
+        display: none;
+    }
+    </style>
 </head>
 <body>
 <!-- Nav bar section -->
@@ -52,6 +57,9 @@
 <div class="container">
     <div class="row mt-3">
         <div class="col col-8">
+            <div class="row mt-1 mb-3">
+                <span class="input-group-text">Taxonomy</span>
+            </div>
             <div class="form-check form-check-inline">
                 <input class="form-check-input" type="radio" name="taxonomy" id="preset-taxonomy-select"
                        value="preset_taxonomy"
@@ -149,7 +157,7 @@
                 </div>
             </div>
             <div class="input-group-append">
-                <button class="btn btn-secondary" type="button" onclick="generateTokens()">Parse!
+                <button class="btn btn-secondary" type="button" onclick="generateTokens()">Run!
                 </button>
             </div>
         </div>
@@ -493,9 +501,9 @@
             "<tr>\n" +
             "<th scope=\"col\">#</th>\n" +
             "<th scope=\"col\">Mention</th>\n" +
-            "<th scope=\"col\">Cached Types (surface)</th>\n" +
-            "<th scope=\"col\">Word2Vec based (surface)</th>\n" +
-            "<th scope=\"col\">Contextual Type</th>\n" +
+            "<th scope=\"col\">Cached types on surface</th>\n" +
+            "<th scope=\"col\" class=\"hidden-surface-col\">Surface embedding (baseline)</th>\n" +
+            "<th scope=\"col\">Zoe Output</th>\n" +
             "<th scope=\"col\">Why?</th>\n" +
             "</tr>\n" +
             "</thead>\n" +
@@ -504,7 +512,7 @@
             table += "<tr><th score='row'>" + String(i) + "</th>"
                 + "<td>" + mention_surfaces[i] + "</td>"
                 + "<td id='row-simple-" + String(i) + "'>" + loading_sign + "</td>"
-                + "<td id='row-vec-" + String(i) + "'>" + loading_sign + "</td>"
+                + "<td class='hidden-surface-col' id='row-vec-" + String(i) + "'>" + loading_sign + "</td>"
                 + "<td id='row-computed-" + String(i) + "'>" + loading_sign + "</td>"
                 + "<td id='row-button-" + String(i) + "'>" + loading_sign + "</td></tr>"
                 + "<tr>\n" +
@@ -517,9 +525,11 @@
         table += "</tbody></table>";
         document.getElementById("prediction-display").innerHTML =
             "<div class=\"alert alert-success\" role=\"alert\">" +
-            "Zoe gave the following outputs:" +
+            "The demo gave the following outputs (Use ▲ token section above to modify mention spans):" +
             "</div>" +
+            "<button type=\"button\" class=\"btn btn-info\" id='show-hidden-surface-col-button'>Show surface embedding baseline</button>" +
             table;
+        document.getElementById('show-hidden-surface-col-button').onclick = setHiddenColumnVisible;
         for (let i = 0; i < mention_surfaces.length; i++) {
             let xhr_vec = new XMLHttpRequest();
             xhr_vec.open("POST", SERVER_API + "annotate_vec", true);
@@ -574,6 +584,15 @@
             });
             xhr.send(data);
         }
+    }
+
+    function setHiddenColumnVisible() {
+        var hid_class_name = "hidden-surface-col";
+        var elems = document.querySelectorAll(".hidden-surface-col");
+        [].forEach.call(elems, function(el) {
+            el.classList.remove(hid_class_name);
+        });
+        document.getElementById("show-hidden-surface-col-button").classList.add(hid_class_name);
     }
 </script>
 <script>

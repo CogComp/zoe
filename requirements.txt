@@ -7,3 +7,4 @@ Flask
 flask-cors
 ccg_nlpy
 gensim
+requests

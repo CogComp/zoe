@@ -1,0 +1,164 @@
+p {
+    font-size: 16px;
+}
+.breadcrumb {
+    border: 1px solid lightgrey;
+    clear: both;
+}
+
+hr {
+    border-color: lightgrey;
+    opacity: 100%;
+    clear: both;
+}
+h2 {
+    color: white !important;
+    background: lightgray;
+    background: -webkit-linear-gradient(left, #444 0%, #eee 100%);
+    padding: 5px;
+    padding-left: 15px;
+    margin-top: 0px;
+    margin-bottom: 20px;
+    font-weight: normal;
+    border-left: 5px solid #428bca;
+}
+h2 small {
+    color: lightgrey;
+    font-weight: 300;
+}
+.CCG, .CCG h1, .CCG h1 a {
+    font-variant: small-caps;
+    font-size: 1.44em;
+    color: #2a6496;
+}
+.CCG h1 a {
+    line-height: 0.1em;
+}
+.CCG {
+    padding-left: 15px;
+    padding-right: 10px;
+}
+.CCG small {
+    font-size: 0.45em;
+    text-transform: uppercase;
+    color: #ddb482;
+    font-weight: lighter;
+    letter-spacing: 7.8px;
+    display: block;
+    line-height: 0.7em;
+}
+.CCG img {
+    position: absolute;
+    top: 0px;
+    right: 0px;
+    height:100px;
+}
+
+.popover{
+    max-width:800px;
+}
+
+#nav li .ell{
+    margin:0px;
+    padding:0px;
+    padding-top:   2px;
+    padding-bottom:2px;
+    padding-left:4px;
+    padding-right:4px;
+    margin:4px;
+}
+
+#nav{
+    margin-top:-10px;
+    margin-left:-25px;
+}
+
+.lead{
+    padding:20px;
+}
+
+.ccg-sidebar{
+    width:110px;
+}
+
+#illinois-logo{
+    margin:  10px;
+    padding: 10px;
+}
+
+.navigation-container{
+  margin-left: 50px;
+  margin-right: 50px;
+}
+
+/* cloaking directive */
+
+[ng\:cloak], [ng-cloak], [data-ng-cloak], [x-ng-cloak], .ng-cloak, .x-ng-cloak {
+    display: none !important;
+}
+#problems {
+    font-size: 0.8em;
+    position: fixed;
+    bottom: 0px;
+    left: 17px;
+}
+#rollover {
+    font-size: 0.8em;
+    position: fixed;
+    top: 17px;
+    right: 17px;
+    width: 200px;
+}
+.licensing {
+    overflow-y: scroll;
+    height: 300px;
+    width: 100%;
+    border: 1px solid #DDD;
+    padding: 10px;
+    background-color: white;
+}
+.holder {
+    padding: 0 5%;
+}
+.header-container{
+  background-color: #FFFFFF;
+  border-bottom: 20px solid #2a6496; 
+}
+/* Navigation */
+.nav-pills > li a {
+  color: black;
+  border-radius: 0px;
+}
+.nav-pills > li a:hover{
+  background-color: #2a6496;
+  color: white;
+  -webkit-transition: all 0.2s;
+  transition: all 0.2s; 
+}
+
+.research-project-card {
+	min-height: 200px;
+}
+
+.research-project-card a h5{
+  background-color: #7F5425;
+  padding: 1em 0.2em;
+  color: white;
+}
+
+.inline {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/*.licensing{
+	overflow-y: scroll;
+	height: 300px;
+	width: 100%;
+	border: 1px solid #DDD;
+	padding: 10px;
+	background-color: white;
+}*/
+.list-group-item.past-project {
+  min-height: 150px;
+}

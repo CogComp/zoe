@@ -3,6 +3,7 @@ import signal
 import time
 import traceback
 
+import requests
 from ccg_nlpy import local_pipeline
 from flask import Flask
 from flask import request
@@ -14,6 +15,32 @@ from cache import SurfaceCache
 from main import ZoeRunner
 from zoe_utils import InferenceProcessor
 from zoe_utils import Sentence
+
+
+class CogCompLoggerClient:
+    def __init__(self, demo_name, base_url="http://127.0.0.1:5000"):
+        self.demo_name = demo_name
+        self.base_url = base_url
+        if self.base_url.endswith("/"):
+            self.url = self.base_url + "log"
+        else:
+            self.url = self.base_url + "/log"
+
+    def log(self, content=""):
+        params = {
+            'entry_name': self.demo_name,
+            'content': content
+        }
+        result = requests.post(url=self.url, params=params).json()
+        if result['result'] == 'SUCCESS':
+            return True
+        return False
+
+    def log_dict(self, d=None):
+        if d is None:
+            return self.log()
+        else:
+            return self.log(content=json.dumps(d))
 
 
 class Server:
@@ -29,6 +56,7 @@ class Server:
         self.surface_cache = SurfaceCache(surface_cache_path)
         self.pipeline = local_pipeline.LocalPipeline()
         self.pipeline_initialize_helper(['.'])
+        self.logger = CogCompLoggerClient("zoe", base_url="http://macniece.seas.upenn.edu:4005")
         self.runner = ZoeRunner(allow_tensorflow=True)
         status = self.runner.elmo_processor.load_sqlite_db(sql_db_path, server_mode=True)
         if not status:
@@ -88,11 +116,15 @@ class Server:
     Main request handler
     It requires the request to contain required information like tokens/mentions
     in the format of a json string
+    
+    @param_override: override API input with a pre-defined dictionary
     """
-    def handle_input(self):
+    def handle_input(self, param_override=None):
         start_time = time.time()
         ret = {}
         r = request.get_json()
+        if param_override is not None:
+            r = param_override
         if "tokens" not in r or "mention_starts" not in r or "mention_ends" not in r or "index" not in r:
             ret["type"] = [["INVALID_INPUT"]]
             ret["index"] = -1
@@ -139,6 +171,10 @@ class Server:
 
         elapsed_time = time.time() - start_time
         print("Processed mention " + str([x.get_mention_surface() for x in sentences]) + " in mode " + mode + ". TIME: " + str(elapsed_time) + " seconds.")
+
+        # Post logging request to Cogcomp Logger
+        self.logger.log_dict(r)
+
         ret["type"] = predicted_types
         ret["candidates"] = predicted_candidates
         ret["mentions"] = mentions
@@ -279,6 +315,18 @@ class Server:
         ret["vectors"] = results
         return json.dumps(ret)
 
+    def handle_logger_test(self):
+        params = {
+            "tokens": ["Iced", "Earth", "\\u2019", "s", "musical", "style", "is", "influenced", "by", "many", "traditional", "heavy", "metal", "groups", "such", "as", "Black", "Sabbath", "."],
+            "index": 0,
+            "mention_starts": [0],
+            "mention_ends": [2],
+            "mode": "figer",
+            "taxonomy": [],
+        }
+        self.handle_input(param_override=params)
+        return "finished"
+
     """
     Handler to start the Flask app
     @localhost: Whether the server lives only in localhost
@@ -293,6 +341,8 @@ class Server:
         self.app.add_url_rule("/annotate_cache", "annotate_cache", self.handle_simple_input, methods=['POST'])
         self.app.add_url_rule("/annotate_vec", "annotate_vec", self.handle_word2vec_input, methods=['POST'])
         self.app.add_url_rule("/annotate_elmo", "annotate_elmo", self.handle_elmo_input, methods=['POST'])
+        # Specifically saved for logger test
+        self.app.add_url_rule("/test", "test", self.handle_logger_test, methods=['POST', 'GET'])
         if localhost:
             self.app.run()
         else:
@@ -307,6 +357,7 @@ class Server:
 
 
 if __name__ == '__main__':
-    server = Server("/Volumes/External/elmo_cache_correct.db", "./data/surface_cache_new.db")
+    # First argument is a placeholder. Please ask for the actual file.
+    server = Server("elmo_cache_correct.db", "./data/surface_cache_new.db")
     server.start(localhost=True)
 

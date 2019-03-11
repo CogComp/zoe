@@ -1,0 +1,687 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css"
+          integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.3.1/css/all.css" integrity="sha384-mzrmE5qonljUremFsqc01SB46JvROS7bZs3IO2EmfFsd15uHvIt+Y8vEf7N7fWAU" crossorigin="anonymous">
+
+    <title>Zoe Online Demo</title>
+    <style>
+        .hiddenRow {
+            padding: 0 !important;
+        }
+    </style>
+    <style>
+    .hidden-surface-col  {
+        display: none;
+    }
+    </style>
+</head>
+<body>
+<!-- Main container -->
+<div class="container">
+    <div class="row mt-3">
+        <div class="col col-8">
+            <div class="row mt-1 mb-3">
+                <span class="input-group-text">Taxonomy</span>
+            </div>
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="taxonomy" id="preset-taxonomy-select"
+                       value="preset_taxonomy"
+                       checked>
+                <label class="form-check-label" for="preset-taxonomy-select">
+                    Preset
+                </label>
+                <div class="ml-1 mr-3">
+                    <button class="btn btn-xs btn-primary" type="button" data-toggle="collapse"
+                            data-target="#preset-help-content" aria-expanded="false"
+                            aria-controls="preset-help-content">
+                        <i class="fas fa-question"></i>
+                    </button>
+                </div>
+                <select class="form-control" id="preset-taxonomy-select-value">
+                    <option>figer</option>
+                    <option>bbn</option>
+                    <option>ontonotes</option>
+                </select>
+            </div>
+            <div class="row mt-3 collapse" id="preset-help-content">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    Use this option when you want to type with one of the three preset taxonomies.
+                    Select from the drop-down for the desired taxonomy.
+                </div>
+            </div>
+            <div class="form-check mt-2">
+                <input class="form-check-input" type="radio" name="taxonomy" id="custom-taxonomy-select"
+                       value="custom_taxonomy">
+                <label class="form-check-label" for="custom-taxonomy-select">
+                    Define Your Own
+                </label>
+                <small>
+                    <button class="btn btn-xs btn-primary" type="button" data-toggle="collapse"
+                            data-target="#custom-help-content" aria-expanded="false"
+                            aria-controls="custom-help-content">
+                        <i class="fas fa-question"></i>
+                    </button>
+                </small>
+            </div>
+            <div class="row mt-3 collapse" id="custom-help-content">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    Select this option if you want to define your own taxonomy.
+                    To make things easier, instead of letting you choose from FreeBase types,
+                    we ask you to find a few examples that belongs to the custom type you want.
+                    Enter a valid Wikipedia URL in the left input box, and the custom type name in the right input box.
+                    The more examples you find, in theory the more precise the mapping is.
+                </div>
+            </div>
+        <div id="custom-taxonomy-rule-input" style="display: none">
+        </div>
+        <div id="custom-taxonomy-rule-input-example" style="display:none">
+            <div class="form-row align-items-center">
+                <div class="col-6">
+                    <input type="text" class="form-control mb-2" id="wikipage-input" placeholder="Wikipedia Page Link">
+                </div>
+                <div class="col-3">
+                    <div class="input-group mb-2">
+                        <input type="text" class="form-control" id="type-input" placeholder="Type">
+                    </div>
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-primary mb-2" onclick="generateFormRow();">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        </div>
+    </div>
+    <div class="row mt-3">
+        <div class="input-group">
+            <div class="input-group-prepend">
+                <span class="input-group-text">Sentence</span>
+                <button class="btn btn-xs btn-primary" type="button" data-toggle="collapse"
+                        data-target="#sentence-help-content" aria-expanded="false"
+                        aria-controls="sentence-help-content">
+                    <i class="fas fa-question"></i>
+                </button>
+            </div>
+            <input type="text" class="form-control" id="sentence-input">
+            <div class="dropdown">
+                <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="dropdownMenuButton"
+                        data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    Examples
+                </button>
+                <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                    <a class="dropdown-item" onclick="useExample(1);">Iced Earth’s...</a>
+                    <a class="dropdown-item" onclick="useExample(2);">James was...</a>
+                    <a class="dropdown-item" onclick="useExample(3);">A helicopter...</a>
+                    <a class="dropdown-item" onclick="useExample(4);">On Saturday...</a>
+                    <a class="dropdown-item" onclick="useExample(5);">Jane was...</a>
+                </div>
+            </div>
+            <div class="input-group-append">
+                <button class="btn btn-secondary" type="button" onclick="generateTokens()">Run!
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-3 collapse" id="sentence-help-content">
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i>
+            Enter a sentence here. Click "Parse!" for the next step.
+        </div>
+    </div>
+
+    <div class="row mt-3">
+        <div class="col-sm-9" id="token-display"></div>
+        <div class="col-sm-3" id="annotate-button"></div>
+    </div>
+
+    <div class="row mt-3 collapse" id="mention-help-content">
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i>
+            Click on the tokens that constitutes the mention you want to type.
+            Note that overlap or consecutive mention selections are not supported.
+            You can always un-select and re-select.
+            Hit "Annotate" when you have finished your selection.
+        </div>
+    </div>
+
+    <div class="row mt-3">
+        <div class="col col-8">
+            <div id="prediction-display"></div>
+        </div>
+    </div>
+
+    <!-- Info section for parameter storage -->
+    <div>
+        <span id="cur-mention-start" style="display: none">-1</span>
+        <span id="cur-mention-end" style="display: none">-1</span>
+        <span id="total-token-num" style="display: none">-1</span>
+        <span id="using-preset-example" style="display: none">-1</span>
+    </div>
+
+
+</div>
+
+
+<!-- Optional JavaScript -->
+<!-- jQuery first, then Popper.js, then Bootstrap JS -->
+<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"
+        integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo"
+        crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js"
+        integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49"
+        crossorigin="anonymous"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js"
+        integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy"
+        crossorigin="anonymous"></script>
+<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+<script src="./constants/constants.js"></script>
+<script>
+    function generateTokens() {
+        document.getElementById("token-display").innerHTML = "";
+        document.getElementById("cur-mention-start").innerText = String(-1);
+        document.getElementById("cur-mention-end").innerText = String(-1);
+        document.getElementById("total-token-num").innerText = String(-1);
+        document.getElementById("prediction-display").innerHTML = "";
+        var sentence = document.getElementById("sentence-input").value;
+        if (sentence.length == 0) {
+            alert("You must enter a sentence to proceed.");
+            return;
+        }
+        let xhr = new XMLHttpRequest();
+        xhr.open("POST", SERVER_API + "annotate_token", true);
+        xhr.setRequestHeader("Content-Type", "application/json");
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
+                var json = JSON.parse(xhr.responseText);
+                continueGenerateTokens(json);
+            }
+        };
+        var data = JSON.stringify({
+            sentence: sentence,
+        });
+        xhr.send(data);
+    }
+
+    function continueGenerateTokens(result) {
+        var tokens = result["tokens"];
+        document.getElementById("total-token-num").innerText = String(tokens.length);
+        for (var i = 0; i < tokens.length; i++) {
+            var curToken = tokens[i];
+            document.getElementById("token-display").innerHTML +=
+                "<button type=\"button\" class=\"btn btn-outline-primary\" id=\"token-"
+                + i
+                + "\" onclick=\"processButton()\">"
+                + curToken
+                + "</button>"
+        }
+        for (var j = 0; j < tokens.length; j++) {
+            var button = document.getElementById("token-" + j);
+            button.onclick = function() {
+                processButton(this, true);
+            };
+        }
+        document.getElementById("annotate-button").innerHTML =
+            "<button type=\"button\" class=\"btn btn-success\" id=\"annotate-button-actual\">Annotate</button>";
+        document.getElementById("annotate-button").innerHTML +=
+            "<button class=\"btn btn-xs btn-primary\" type=\"button\" data-toggle=\"collapse\" data-target=\"#mention-help-content\" aria-expanded=\"false\" aria-controls=\"mention-help-content\">\n" +
+            "<i class=\"fas fa-question\"></i>\n" +
+            "</button>";
+        var annotate_button = document.getElementById("annotate-button-actual");
+        annotate_button.onclick = generateAnnotation;
+
+        var example_id = Number(document.getElementById("using-preset-example").innerText);
+        if (example_id != -1) {
+            var preset_mentions = getExampleSentenceMention(example_id);
+            var m;
+            for (m = 0; m < preset_mentions.length; m++) {
+                var n;
+                for (n = preset_mentions[m][0]; n < preset_mentions[m][1]; n++) {
+                    processButton(document.getElementById("token-" + String(n)), false);
+                }
+            }
+            generateAnnotation();
+        }
+        else {
+            generatePresetMentions();
+        }
+        document.getElementById("using-preset-example").innerText = String(-1);
+    }
+
+    function getTokens() {
+        var parent_div = document.getElementById("token-display");
+        var i;
+        var tokens = [];
+        for (i = 0; i < parent_div.children.length; i++) {
+            tokens.push(parent_div.children[i].innerHTML);
+        }
+        return tokens;
+    }
+
+    function generatePresetMentions() {
+        var sentence = document.getElementById("sentence-input").value;
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", SERVER_API + "annotate_mention", true);
+        xhr.setRequestHeader("Content-Type", "application/json");
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState === 4 && xhr.status === 200) {
+                var json = JSON.parse(xhr.responseText);
+                updatePresetResult(json);
+            }
+        };
+        var data = JSON.stringify({
+            tokens: getTokens(),
+        });
+        xhr.send(data);
+    }
+
+    function updatePresetResult(result) {
+        var spans = result['mention_spans'];
+        var i;
+        var prev_end = -1;
+        for (i = 0; i < spans.length; i++) {
+            var span = spans[i];
+            var start = Number(span[0]);
+            var end = Number(span[1]);
+            if (start == prev_end) {
+                continue;
+            }
+            var j;
+            for (j = start; j < end; j++) {
+                processButton(document.getElementById("token-" + String(j)), false);
+            }
+            prev_end = end;
+        }
+        generateAnnotation();
+    }
+
+    function processButton(but, manual) {
+        if (but.classList.contains("btn-outline-primary")) {
+            processButtonSelect(but);
+        } else {
+            processButtonUnselect(but);
+        }
+        if (manual == true) {
+            document.getElementById("annotate-button").style.visibility = "visible";
+        } else {
+            document.getElementById("annotate-button").style.visibility = "hidden";
+        }
+    }
+
+    function processButtonUnselect(but) {
+        var idx = Number(but.id.split("-")[1]);
+        var token_size = Number(document.getElementById("total-token-num").innerText);
+        if (idx > 0 && idx < token_size - 1) {
+            if (document.getElementById("token-" + String(idx - 1)).classList.contains("btn-primary") &&
+                document.getElementById("token-" + String(idx + 1)).classList.contains("btn-primary")) {
+                alert("You must unselect out-most tokens first.");
+                return;
+            }
+        }
+        but.classList.remove("btn-primary");
+        but.classList.add("btn-outline-primary");
+    }
+
+    function processButtonSelect(but) {
+        if (but.classList.contains("btn-outline-primary")){
+            but.classList.remove("btn-outline-primary");
+            but.classList.add("btn-primary");
+        }
+    }
+
+    function genWikiSpanHelper(title) {
+        return "<a target=\"_blank\" href=\"http://en.wikipedia.org/wiki/"
+            + title
+            + "\"><span class=\"badge badge-primary mt-1\">" + title + "</span></a>";
+    }
+
+    function updateResult(result) {
+        var predictions = result['type'];
+        var candidates = result['candidates'];
+        var other_predictions = result['other_possible_type'];
+        var index = result["index"];
+        var selected_candidate_info = result["selected_candidates"][0].split("-");
+        var cand_str = "<div class=\"alert alert-success mt-1\" role=\"alert\">";
+        if (selected_candidate_info[0] == "SURF") {
+            cand_str += "A key concept was selected via surface form: " + genWikiSpanHelper(selected_candidate_info[1]);
+            cand_str += "<br>";
+        }
+        else {
+            cand_str += "A most likely match was selected via context consistency: " + genWikiSpanHelper(selected_candidate_info[1]);
+            cand_str += "<br>";
+        }
+        cand_str += "All concepts that were used for inference: ";
+        for (var j = 0; j < candidates[0].length; j++) {
+            var candidate = candidates[0][j];
+            cand_str += genWikiSpanHelper(candidate);
+        }
+        document.getElementById("row-hidden-" + String(index)).innerHTML = cand_str + "</div>";
+        var toggle_button =
+            "<button class='btn btn-primary' type='button' data-toggle='collapse' data-target='#row-hidden-"
+            + String(index)
+            + "'>Show more</button>";
+        document.getElementById("row-button-" + String(index)).innerHTML = toggle_button;
+        document.getElementById("row-computed-" + String(index)).innerHTML =
+            "<div class=\"alert alert-info\" role=\"alert\">" +
+            String(predictions[0]) +
+            "</div>";
+        document.getElementById("row-computed-" + String(index)).innerHTML +=
+            "Could also be: " + String(other_predictions);
+    }
+
+    function updateCachedResult(result) {
+        var types = result["type"];
+        var index = result["index"];
+        document.getElementById("row-simple-" + String(index)).innerHTML = String(types);
+    }
+
+    function updateVecResult(result) {
+        var types = result["type"];
+        var index = result["index"];
+        document.getElementById("row-vec-" + String(index)).innerHTML = String(types);
+    }
+
+    function getInferenceMode() {
+        if (document.getElementById("preset-taxonomy-select").checked) {
+            return document.getElementById("preset-taxonomy-select-value").value;
+        }
+        else {
+            return "custom";
+        }
+    }
+
+    function getCustomInferenceMappings() {
+        var parent_div = document.getElementById("custom-taxonomy-rule-input");
+        var i;
+        var ret = [];
+        if (getInferenceMode() != "custom") {
+            return ret;
+        }
+        for (i = 0; i < parent_div.children.length; i++) {
+            var cur_id = parent_div.children[i].id;
+            var cur_page_group = document.getElementById(cur_id + "-wikipage-input").value.split("/");
+            var cur_page = cur_page_group[cur_page_group.length - 1];
+            var cur_type = document.getElementById(cur_id + "-type-input").value;
+            ret.push(cur_page + "|||" + cur_type);
+        }
+        return ret;
+    }
+
+    function generateAnnotation() {
+        var sentence = document.getElementById("sentence-input").value;
+        var mention_starts = [];
+        var mention_ends = [];
+        var tokens = [];
+        var parent_div = document.getElementById("token-display");
+        var i;
+        for (i = 0; i < parent_div.children.length; i++) {
+            var cur_id = parent_div.children[i].id;
+            var idx = Number(cur_id.split("-")[1]);
+            tokens.push(parent_div.children[i].innerHTML);
+            if (parent_div.children[i].classList.contains("btn-primary")) {
+                if (idx == 0) {
+                    mention_starts.push(idx);
+                }
+                if (idx > 0 && document.getElementById("token-" + String(idx - 1)).classList.contains("btn-outline-primary")){
+                    mention_starts.push(idx);
+                }
+                if (idx == parent_div.children.length - 1) {
+                    mention_ends.push(idx + 1);
+                }
+                if (idx < parent_div.children.length - 1) {
+                    if (document.getElementById("token-" + String(idx + 1)).classList.contains("btn-outline-primary")){
+                        mention_ends.push(idx + 1);
+                    }
+                }
+            }
+        }
+        if (mention_starts.length != mention_ends.length) {
+            alert("Parsing Error!");
+            return;
+        }
+        if (mention_starts.length == 0) {
+            alert("You must select a mention to proceed.");
+            return;
+        }
+        var loading_sign = "<img width='10%' src='./loading_icon.gif'>Loading...";
+        var mention_surfaces = [];
+        for (i = 0; i < mention_starts.length; i++) {
+            var start_span = mention_starts[i];
+            var end_span = mention_ends[i];
+            var combined = "";
+            var j;
+            for (j = start_span; j < end_span; j++) {
+                combined += tokens[j] + " ";
+            }
+            mention_surfaces.push(combined);
+        }
+        console.log(mention_surfaces);
+        var table = "<table class=\"table\">\n" +
+            "<thead>\n" +
+            "<tr>\n" +
+            "<th scope=\"col\">#</th>\n" +
+            "<th scope=\"col\">Mention</th>\n" +
+            "<th scope=\"col\">Cached types on surface</th>\n" +
+            "<th scope=\"col\" class=\"hidden-surface-col\">Surface embedding (baseline)</th>\n" +
+            "<th scope=\"col\">Zoe Output</th>\n" +
+            "<th scope=\"col\">Why?</th>\n" +
+            "</tr>\n" +
+            "</thead>\n" +
+            "<tbody>";
+        for (i = 0; i < mention_surfaces.length; i++) {
+            table += "<tr><th score='row'>" + String(i) + "</th>"
+                + "<td>" + mention_surfaces[i] + "</td>"
+                + "<td id='row-simple-" + String(i) + "'>" + loading_sign + "</td>"
+                + "<td class='hidden-surface-col' id='row-vec-" + String(i) + "'>" + loading_sign + "</td>"
+                + "<td id='row-computed-" + String(i) + "'>" + loading_sign + "</td>"
+                + "<td id='row-button-" + String(i) + "'>" + loading_sign + "</td></tr>"
+                + "<tr>\n" +
+                "<td colspan='6' class='hiddenRow'>\n" +
+                "<div class='collapse' id='row-hidden-" + String(i) + "'></div>" +
+                "</div>\n" +
+                "</td>\n" +
+                "</tr>"
+        }
+        table += "</tbody></table>";
+        document.getElementById("prediction-display").innerHTML =
+            "<div class=\"alert alert-success\" role=\"alert\">" +
+            "The demo gave the following outputs (Use ▲ token section above to modify mention spans):" +
+            "</div>" +
+            "<button type=\"button\" class=\"btn btn-info\" id='show-hidden-surface-col-button'>Show surface embedding baseline</button>" +
+            table;
+        document.getElementById('show-hidden-surface-col-button').onclick = setHiddenColumnVisible;
+        for (let i = 0; i < mention_surfaces.length; i++) {
+            let xhr_vec = new XMLHttpRequest();
+            xhr_vec.open("POST", SERVER_API + "annotate_vec", true);
+            xhr_vec.setRequestHeader("Content-Type", "application/json");
+            xhr_vec.onreadystatechange = function () {
+                if (xhr_vec.readyState === XMLHttpRequest.DONE && xhr_vec.status === 200) {
+                    var json = JSON.parse(xhr_vec.responseText);
+                    updateVecResult(json);
+                }
+            };
+            var data_vec = JSON.stringify({
+                index: i,
+                tokens: getTokens(),
+                mention_starts: [mention_starts[i]],
+                mention_ends: [mention_ends[i]],
+            });
+            xhr_vec.send(data_vec);
+
+            let xhr_simple = new XMLHttpRequest();
+            xhr_simple.open("POST", SERVER_API + "annotate_cache", true);
+            xhr_simple.setRequestHeader("Content-Type", "application/json");
+            xhr_simple.onreadystatechange = function () {
+                if (xhr_simple.readyState === XMLHttpRequest.DONE && xhr_simple.status === 200) {
+                    var json = JSON.parse(xhr_simple.responseText);
+                    updateCachedResult(json);
+                }
+            };
+            var data_simple = JSON.stringify({
+                index: i,
+                tokens: getTokens(),
+                mention_starts: [mention_starts[i]],
+                mention_ends: [mention_ends[i]],
+            });
+            xhr_simple.send(data_simple);
+
+            let xhr = new XMLHttpRequest();
+            xhr.open("POST", SERVER_API + "annotate", true);
+            xhr.setRequestHeader("Content-Type", "application/json");
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
+                    var json = JSON.parse(xhr.responseText);
+                    updateResult(json);
+                }
+            };
+            var data = JSON.stringify({
+                index: i,
+                tokens: getTokens(),
+                mention_starts: [mention_starts[i]],
+                mention_ends: [mention_ends[i]],
+                mode: getInferenceMode(),
+                taxonomy: getCustomInferenceMappings(),
+            });
+            xhr.send(data);
+        }
+    }
+
+    function setHiddenColumnVisible() {
+        var hid_class_name = "hidden-surface-col";
+        var elems = document.querySelectorAll(".hidden-surface-col");
+        [].forEach.call(elems, function(el) {
+            el.classList.remove(hid_class_name);
+        });
+        document.getElementById("show-hidden-surface-col-button").classList.add(hid_class_name);
+    }
+</script>
+<script>
+    function handle_custom_taxonomy_select() {
+        document.getElementById("custom-taxonomy-rule-input").style = "";
+        document.getElementById("custom-taxonomy-rule-input-example").style = "";
+    }
+    function handle_preset_taxonomy_select() {
+        document.getElementById("custom-taxonomy-rule-input").style = "display:none";
+        document.getElementById("custom-taxonomy-rule-input-example").style = "display:none";
+    }
+    document.getElementById("custom-taxonomy-select").onclick = handle_custom_taxonomy_select;
+    document.getElementById("preset-taxonomy-select").onclick = handle_preset_taxonomy_select;
+
+    function makeid() {
+        var text = "";
+        var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+        for (var i = 0; i < 5; i++)
+            text += possible.charAt(Math.floor(Math.random() * possible.length));
+
+        return text;
+    }
+
+    function delete_taxonomy_rule(obj) {
+        var div_id = obj.id.split("-")[0];
+        var to_remove = document.getElementById(div_id);
+        to_remove.parentNode.removeChild(to_remove);
+    }
+
+    function generateFormRow(){
+        var id = makeid();
+        var page_value = document.getElementById("wikipage-input").value;
+        var type_value = document.getElementById("type-input").value;
+        if (!page_value.includes("http") || !page_value.includes("wikipedia") || !page_value.includes("/")) {
+            alert("You must enter a valid Wikipedia link.");
+            return;
+        }
+        if (type_value.length == 0) {
+            alert("You must enter a type");
+            return;
+        }
+        if (type_value[0] != '/') {
+            alert("A type must start with /.");
+            return;
+        }
+        var text = "                <div class=\"form-row align-items-center\" id=\"" + id + "\">\n" +
+            "                    <div class=\"col-6\">\n" +
+            "                        <input type=\"text\" class=\"form-control mb-2\" id=\"" + id + "-wikipage-input\" value=\"" + page_value + "\">\n" +
+            "                    </div>\n" +
+            "                    <div class=\"col-3\">\n" +
+            "                        <div class=\"input-group mb-2\">\n" +
+            "                            <input type=\"text\" class=\"form-control\" id=\"" + id + "-type-input\" value=\"" + type_value + "\">\n" +
+            "                        </div>\n" +
+            "                    </div>\n" +
+            "                    <div class=\"col-auto\">\n" +
+            "                        <button type=\"submit\" class=\"btn btn-primary mb-2\" id=\"" + id + "-submit-button\">\n" +
+            "                            <i class=\"fas fa-minus\"></i>\n" +
+            "                        </button>\n" +
+            "                    </div>\n" +
+            "                </div>"
+        document.getElementById("custom-taxonomy-rule-input").innerHTML += text;
+        var parent_div = document.getElementById("custom-taxonomy-rule-input");
+        var i;
+        for (i = 0; i < parent_div.children.length; i++) {
+            var cur_id = parent_div.children[i].id;
+            document.getElementById(cur_id + "-submit-button").addEventListener('click', function(){
+                delete_taxonomy_rule(this);
+            });
+        }
+        document.getElementById("wikipage-input").value = "";
+        document.getElementById("type-input").value = "";
+    }
+
+</script>
+<script>
+
+    function getExampleSentence(id) {
+        if (id == 1) {
+            return "Iced Earth ’s musical style is influenced by many traditional heavy metal groups such as Black Sabbath .";
+        }
+        if (id == 2) {
+            return "James was selected by his hometown team , the Cleveland Cavaliers , as the first overall pick of the 2003 NBA draft .";
+        }
+        if (id == 3) {
+            return "A helicopter which was carrying the owner of Leicester City FC has crashed in flames near the club's ground. ";
+        }
+        if (id == 4) {
+            return "On Saturday night, the authorities were still looking for Bowers, and had searched his apartment with dogs.";
+        }
+        if (id == 5) {
+            return "Jane was infected with an unknown illness, so she took the bus and went to the capital for better treatment.";
+        }
+    }
+
+    function getExampleSentenceMention(id) {
+        if (id == 1) {
+            return [[0, 2], [11, 13], [16, 18]];
+        }
+        if (id == 2) {
+            return [[0, 1], [5, 7], [9, 11], [20, 21]];
+        }
+        if (id == 3) {
+            return [[0, 2], [6, 7], [8, 11], [14, 15], [19, 20]];
+        }
+        if (id == 4) {
+            return [[1, 2], [5, 6], [10, 11], [15, 17], [18, 19]];
+        }
+        if (id == 5) {
+            return [[0, 1], [4, 7], [9, 10], [12, 13], [17, 18], [19, 21]];
+        }
+    }
+
+    function useExample(id) {
+        var sentence = getExampleSentence(id);
+        document.getElementById("sentence-input").value = sentence;
+        document.getElementById("using-preset-example").innerText = String(id);
+    }
+
+</script>
+</body>
+</html>
